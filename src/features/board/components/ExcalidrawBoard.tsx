@@ -12,7 +12,13 @@ import {
   useState,
   type ComponentProps,
 } from "react";
-import { Excalidraw, WelcomeScreen, MainMenu } from "@excalidraw/excalidraw";
+import {
+  Excalidraw,
+  WelcomeScreen,
+  MainMenu,
+  reconcileElements,
+  restoreElements,
+} from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import { Loader } from "@/components/layout/Loader";
 import { io, type Socket } from "socket.io-client";
@@ -20,6 +26,7 @@ import { io, type Socket } from "socket.io-client";
 type ExcalidrawOnChange = NonNullable<
   ComponentProps<typeof Excalidraw>["onChange"]
 >;
+type ExcalidrawElement = Parameters<ExcalidrawOnChange>[0][number];
 
 interface ExcalidrawBoardProps {
   boardId: string;
@@ -28,7 +35,6 @@ interface ExcalidrawBoardProps {
 const SOCKET_SERVER_URL =
   process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || "http://localhost:4000";
 
-// Tłumaczenia wybranych elementów dialogu pomocy Excalidraw
 const HELP_TRANSLATIONS: Record<string, string> = {
   "Crop image": "Przytnij obraz",
   "Finish image cropping": "Zakończ przycinanie obrazu",
@@ -42,20 +48,95 @@ const HELP_TRANSLATIONS: Record<string, string> = {
   "Show font picker": "Pokaż wybór czcionki",
 };
 
+// Zbiór znaków zgodny ze specyfikacją Jepson Fractional Indexing (Base62)
+const BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+// Generuje 100% poprawne, czyste klucze indeksów ułamkowych dla Excalidraw
+const getCleanFractionalIndex = (i: number): string => {
+  if (i < 62) {
+    return `a${BASE62[i]}`;
+  }
+  if (i < 62 + 62 * 62) {
+    const offset = i - 62;
+    const c1 = Math.floor(offset / 62);
+    const c2 = offset % 62;
+    return `b${BASE62[c1]}${BASE62[c2]}`;
+  }
+  const offset = i - (62 + 62 * 62);
+  const c1 = Math.floor(offset / (62 * 62));
+  const c2 = Math.floor(offset / 62) % 62;
+  const c3 = offset % 62;
+  return `c${BASE62[c1]}${BASE62[c2]}${BASE62[c3]}`;
+};
+
+// REBALANSER WARSTW: Naprawia skażone i znikające klucze warstw
+const sanitizeAndRebalanceElements = (
+  elements: readonly ExcalidrawElement[],
+): { elements: ExcalidrawElement[]; fixed: boolean } => {
+  if (!elements || elements.length === 0) {
+    return { elements: [] as ExcalidrawElement[], fixed: false };
+  }
+
+  // 1. Sortujemy elementy według aktualnego indeksu
+  const sorted = [...elements].sort((a, b) => {
+    if (a.index && b.index && a.index !== b.index) {
+      return a.index < b.index ? -1 : 1;
+    }
+    return a.id.localeCompare(b.id);
+  });
+
+  // 2. Sprawdzamy czy wymagany jest rebalans (duplikaty, dwukropki, brak kolejności)
+  let needsRebalance = false;
+  const seen = new Set<string>();
+  let lastIdx = "";
+
+  for (const el of sorted) {
+    if (
+      !el.index ||
+      el.index.includes(":") ||
+      seen.has(el.index) ||
+      el.index <= lastIdx
+    ) {
+      needsRebalance = true;
+      break;
+    }
+    seen.add(el.index);
+    lastIdx = el.index;
+  }
+
+  if (!needsRebalance) {
+    return { elements: sorted, fixed: false };
+  }
+
+  // 3. Nadajemy czyste, prawidłowe klucze fractional indexing (a0, a1 ... aZ, b00 ...)
+  const rebalanced = sorted.map((el, idx) => ({
+    ...el,
+    index: getCleanFractionalIndex(
+      idx,
+    ) as unknown as ExcalidrawElement["index"],
+  }));
+
+  return { elements: rebalanced, fixed: true };
+};
+
+const getElementsVersionSum = (
+  elements: readonly ExcalidrawElement[],
+): number => {
+  return elements.reduce((acc, el) => acc + el.version + el.versionNonce, 0);
+};
+
 export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
   const [isReady, setIsReady] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
 
-  // Flaga zabezpieczająca przed pętlą nieskończoną wysyłania zdarzeń
-  const isReceivingRemoteUpdate = useRef(false);
   const socketRef = useRef<Socket | null>(null);
+  const lastReceivedVersionSumRef = useRef<number>(0);
 
-  // Mapa kursorów
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const collaboratorsRef = useRef<Map<string, any>>(new Map());
 
-  // * Patchowanie dialogu pomocy Excalidraw, aby wyświetlał tłumaczenia skrótów klawiszowych.
+  // Patchowanie dialogu pomocy
   useEffect(() => {
     const patchHelpDialog = () => {
       document
@@ -71,17 +152,15 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
     const observer = new MutationObserver(patchHelpDialog);
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // od razu, gdyby dialog już był otwarty
     patchHelpDialog();
 
     return () => observer.disconnect();
   }, []);
 
-  // * Połączenie z mikroserwisem Node.js i obsługa zdarzeń Real-Time
+  // Połączenie z serwerem Socket.io
   useEffect(() => {
     if (!excalidrawAPI) return;
 
-    // Połączenie z mikroserwisem Node.js
     const socket = io(SOCKET_SERVER_URL);
     socketRef.current = socket;
 
@@ -90,27 +169,76 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
       socket.emit("join-room", { boardId, username: "Użytkownik" });
     });
 
-    // 1. Odbiór stanu początkowego (dla spóźnionych)
-    socket.on("init-room-state", ({ elements }) => {
+    // 1. Odbiór stanu początkowego
+    socket.on("init-room-state", ({ elements, files }) => {
+      if (files && Object.keys(files).length > 0) {
+        excalidrawAPI.addFiles(Object.values(files));
+      }
+
       if (elements && elements.length > 0) {
-        isReceivingRemoteUpdate.current = true;
-        excalidrawAPI.updateScene({ elements });
-        setTimeout(() => {
-          isReceivingRemoteUpdate.current = false;
-        }, 50);
+        const localElements = excalidrawAPI.getSceneElements();
+        const appState = excalidrawAPI.getAppState();
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const restoredRemote = restoreElements(elements, localElements, {
+          repairBindings: true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
+
+        const { elements: cleanRemote } =
+          sanitizeAndRebalanceElements(restoredRemote);
+
+        const reconciled = reconcileElements(
+          cleanRemote,
+          localElements,
+          appState,
+        );
+
+        const { elements: finalClean } =
+          sanitizeAndRebalanceElements(reconciled);
+        lastReceivedVersionSumRef.current = getElementsVersionSum(finalClean);
+
+        excalidrawAPI.updateScene({ elements: finalClean });
       }
     });
 
-    // 2. Odbiór zdalnych zmian na tablicy od drugiego użytkownika
-    socket.on("server-elements-change", ({ elements }) => {
-      isReceivingRemoteUpdate.current = true;
-      excalidrawAPI.updateScene({ elements });
-      setTimeout(() => {
-        isReceivingRemoteUpdate.current = false;
-      }, 50);
-    });
+    // 2. Odbiór zdalnych zmian
+    socket.on(
+      "server-elements-change",
+      ({ elements: remoteElements, files: remoteFiles }) => {
+        if (!remoteElements) return;
 
-    // 3. Odbiór pozycji kursorów od drugiego użytkownika
+        if (remoteFiles && Object.keys(remoteFiles).length > 0) {
+          excalidrawAPI.addFiles(Object.values(remoteFiles));
+        }
+
+        const localElements = excalidrawAPI.getSceneElements();
+        const appState = excalidrawAPI.getAppState();
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const restoredRemote = restoreElements(remoteElements, localElements, {
+          repairBindings: true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
+
+        const { elements: cleanRemote } =
+          sanitizeAndRebalanceElements(restoredRemote);
+
+        const reconciled = reconcileElements(
+          cleanRemote,
+          localElements,
+          appState,
+        );
+
+        const { elements: finalClean } =
+          sanitizeAndRebalanceElements(reconciled);
+        lastReceivedVersionSumRef.current = getElementsVersionSum(finalClean);
+
+        excalidrawAPI.updateScene({ elements: finalClean });
+      },
+    );
+
+    // 3. Odbiór kursorów
     socket.on(
       "server-pointer-update",
       ({ socketId: remoteId, pointer, button, username, color }) => {
@@ -127,7 +255,7 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
       },
     );
 
-    // 4. Gdy drugi użytkownik opuści pokój
+    // 4. Odejście użytkownika
     socket.on("user-left", ({ socketId: remoteId }) => {
       collaboratorsRef.current.delete(remoteId);
       excalidrawAPI.updateScene({
@@ -140,24 +268,50 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
     };
   }, [excalidrawAPI, boardId]);
 
-  // * Tymczasowa funkcja obsługi zmian w tablicy (do podpięcia w kolejnych krokach)
+  // Obsługa zmian na tablicy z rebalansowaniem w locie
   const handleChange: ExcalidrawOnChange = useCallback(
-    (elements, appState) => {
-      // Jeśli zmiana przychodzi z serwera, NIE wysyłamy jej z powrotem!
-      if (isReceivingRemoteUpdate.current) return;
+    (elements) => {
+      const { elements: cleanElements, fixed } =
+        sanitizeAndRebalanceElements(elements);
 
-      if (socketRef.current && socketRef.current.connected) {
+      if (fixed && excalidrawAPI) {
+        lastReceivedVersionSumRef.current =
+          getElementsVersionSum(cleanElements);
+        excalidrawAPI.updateScene({ elements: cleanElements });
+
+        if (socketRef.current && socketRef.current.connected) {
+          const files = excalidrawAPI.getFiles();
+          socketRef.current.emit("client-elements-change", {
+            boardId,
+            elements: cleanElements,
+            files,
+          });
+        }
+        return;
+      }
+
+      const currentVersionSum = getElementsVersionSum(cleanElements);
+
+      if (currentVersionSum === lastReceivedVersionSumRef.current) {
+        return;
+      }
+
+      if (socketRef.current && socketRef.current.connected && excalidrawAPI) {
+        const files = excalidrawAPI.getFiles();
+
         socketRef.current.emit("client-elements-change", {
           boardId,
-          elements,
+          elements: cleanElements,
+          files,
         });
       }
-      // TODO: [BACKEND] Podpiąć zapisywanie stanu tablicy do bazy danych.
+
+      // TODO: [BACKEND] Podpiąć autosafe do bazy danych
     },
-    [boardId],
+    [boardId, excalidrawAPI],
   );
 
-  // * Wysyłanie ruchów myszki/rysika na żywo
+  // Wysyłanie kursorów na żywo
   const handlePointerUpdate = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (payload: any) => {
@@ -212,9 +366,6 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
           tools: { image: true },
         }}
       >
-        {/* ==========================================
-          WŁASNE MENU GŁÓWNE
-          ========================================== */}
         <MainMenu>
           <MainMenu.DefaultItems.LoadScene />
           <MainMenu.DefaultItems.SaveToActiveFile />
@@ -230,9 +381,6 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
           </MainMenu.ItemCustom>
         </MainMenu>
 
-        {/* ==========================================
-          EKRAN POWITALNY MATCOREKI
-          ========================================== */}
         <WelcomeScreen>
           <WelcomeScreen.Center>
             <WelcomeScreen.Center.Heading>
