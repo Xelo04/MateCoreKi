@@ -1,0 +1,127 @@
+/* ==========================================================================
+   BRANDING
+   ========================================================================== */
+
+.excalidraw {
+  --color-primary: #2563eb;
+  --color-primary-darker: #1d4ed8;
+  --color-primary-darkest: #1e40af;
+  --color-primary-light: #93c5fd;
+  --color-primary-contrast-offset: #1e40af;
+}
+
+/* ==========================================================================
+   KURSORY EXCALIDRAW - FIX DLA SYSTEMOWEGO DARK MODE
+   ========================================================================== */
+
+/* Celownik (crosshair) dla narzędzi rysowania */
+.excalidraw *[style*="cursor"][style*="crosshair"],
+.excalidraw canvas[style*="crosshair"] {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M12 2V22M2 12H22' stroke='%23ffffff' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M12 2V22M2 12H22' stroke='%23000000' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E")
+      12 12,
+    crosshair !important;
+}
+
+/* Kursor tekstowy */
+.excalidraw *[style*="cursor"][style*="text"],
+.excalidraw canvas[style*="text"] {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M9 4H15M12 4V20M9 20H15' stroke='%23ffffff' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M9 4H15M12 4V20M9 20H15' stroke='%23000000' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E")
+      12 12,
+    text !important;
+}
+
+/* Otwarta dłoń (Grab) - Lucide Hand */
+.excalidraw *[style*="cursor"][style*="grab"]:not([style*="grabbing"]),
+.excalidraw canvas[style*="grab"]:not([style*="grabbing"]) {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cg stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/g%3E%3Cg stroke='%23000000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8'/%3E%3Cpath d='M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15'/%3E%3C/g%3E%3C/svg%3E")
+      12 12,
+    grab !important;
+}
+
+/* Zamknięta dłoń (Grabbing) - Lucide Hand Grab */
+.excalidraw *[style*="cursor"][style*="grabbing"],
+.excalidraw canvas[style*="grabbing"] {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cg stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11.5V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1.4'/%3E%3Cpath d='M14 10V8a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 9.9V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v5'/%3E%3Cpath d='M6 14a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8 2 2 0 1 1 4 0'/%3E%3C/g%3E%3Cg stroke='%23000000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 11.5V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1.4'/%3E%3Cpath d='M14 10V8a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2'/%3E%3Cpath d='M10 9.9V9a2 2 0 0 0-2-2a2 2 0 0 0-2 2v5'/%3E%3Cpath d='M6 14a2 2 0 0 0-2-2a2 2 0 0 0-2 2'/%3E%3Cpath d='M18 11a2 2 0 1 1 4 0v3a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8 2 2 0 1 1 4 0'/%3E%3C/g%3E%3C/svg%3E")
+      12 12,
+    grabbing !important;
+}
+
+/* ==========================================================================
+   CZYSZCZENIE ZBĘDNEGO INTERFEJSU
+   ========================================================================== */
+
+.excalidraw .App-toolbar-container .ToolIcon__lock {
+  display: none !important;
+}
+
+.excalidraw .App-toolbar-container .ToolIcon__lock + .App-toolbar__divider {
+  display: none !important;
+}
+
+.excalidraw .App-toolbar__extra-tools-trigger {
+  display: none !important;
+}
+
+.excalidraw .App-toolbar__extra-tools-trigger + .App-toolbar__divider,
+.excalidraw .App-toolbar__divider:last-of-type {
+  display: none !important;
+}
+
+.excalidraw .layer-ui__wrapper__top-right {
+  display: none !important;
+}
+
+/* Ukrycie tytułu "Pomoc" wyłącznie w oknie pomocy (nie psuje innych okien dialogowych) */
+.Dialog:has(.HelpDialog__islands-container) .Dialog__title,
+.Dialog:has(.HelpDialog__shortcut) .Dialog__title,
+.excalidraw .Dialog:has(.HelpDialog__islands-container) .Dialog__title {
+  display: none !important;
+}
+
+/* Ukrycie zewnętrznych linków w oknie Pomocy */
+.excalidraw .HelpDialog__header {
+  display: none !important;
+}
+
+/* ==========================================================================
+   ŁATKA TŁUMACZEŃ EXCALIDRAW
+   ========================================================================== */
+
+.excalidraw button[data-testid="search-menu-button"] .dropdown-menu-item__text {
+  visibility: hidden;
+  position: relative;
+}
+
+.excalidraw
+  button[data-testid="search-menu-button"]
+  .dropdown-menu-item__text::after {
+  content: "Szukaj na tablicy";
+  visibility: visible;
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   UKRYCIE WEWNĘTRZNEGO NAPISU "LOADING SCENE" EXCALIDRAW
+   ========================================================================== */
+
+.LoadingMessage,
+.LoadingMessage_animated,
+.excalidraw-loading-element,
+.spinner-container,
+.excalidraw-loader,
+.loading-screen,
+.excalidraw-loading,
+[class*="LoadingMessage"],
+[class*="excalidraw-loading"] {
+  display: none !important;
+}
