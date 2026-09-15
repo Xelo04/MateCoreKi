@@ -9,6 +9,7 @@
 import dynamic from "next/dynamic";
 import { Loader } from "@/components/layout/Loader";
 import type { BoardProps } from "../types";
+import { useAuth } from "@/features/auth/use-auth";
 
 // Dynamiczny import wrappera z wyłączeniem SSR.
 const ExcalidrawBoard = dynamic(
@@ -23,11 +24,21 @@ const ExcalidrawBoard = dynamic(
 );
 
 export function Board({ boardId }: BoardProps) {
+  const { session } = useAuth();
+
+  const username = session?.user.firstName || "Ładowanie...";
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
       {/* Obszar tablicy Excalidraw */}
       <div className="absolute inset-0 h-full w-full">
-        <ExcalidrawBoard boardId={boardId} />
+        {username !== "Ładowanie..." ? (
+          <ExcalidrawBoard boardId={boardId} username={username} />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Loader />
+          </div>
+        )}
       </div>
     </div>
   );

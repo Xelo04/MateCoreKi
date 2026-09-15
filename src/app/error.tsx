@@ -4,7 +4,6 @@
 
 "use client";
 
-import { useEffect } from "react";
 import Image from "next/image";
 import { RefreshCw, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,11 +14,7 @@ interface ErrorPageProps {
   reset: () => void;
 }
 
-export default function Error({ error, reset }: ErrorPageProps) {
-  useEffect(() => {
-    console.error("Wystąpił błąd krytyczny:", error);
-  }, [error]);
-
+export default function Error({ reset }: ErrorPageProps) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
       <div className="w-full max-w-xl text-center space-y-8">

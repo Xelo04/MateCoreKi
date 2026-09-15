@@ -30,6 +30,7 @@ type ExcalidrawElement = Parameters<ExcalidrawOnChange>[0][number];
 
 interface ExcalidrawBoardProps {
   boardId: string;
+  username: string;
 }
 
 const SOCKET_SERVER_URL =
@@ -69,7 +70,7 @@ const getCleanFractionalIndex = (i: number): string => {
   return `c${BASE62[c1]}${BASE62[c2]}${BASE62[c3]}`;
 };
 
-// REBALANSER WARSTW: Naprawia skażone i znikające klucze warstw
+// Naprawia skażone i znikające klucze warstw
 const sanitizeAndRebalanceElements = (
   elements: readonly ExcalidrawElement[],
 ): { elements: ExcalidrawElement[]; fixed: boolean } => {
@@ -125,8 +126,10 @@ const getElementsVersionSum = (
   return elements.reduce((acc, el) => acc + el.version + el.versionNonce, 0);
 };
 
-export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
+export function ExcalidrawBoard({ boardId, username }: ExcalidrawBoardProps) {
   const [isReady, setIsReady] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
 
@@ -161,12 +164,20 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
   useEffect(() => {
     if (!excalidrawAPI) return;
 
-    const socket = io(SOCKET_SERVER_URL);
+    const socket = io(SOCKET_SERVER_URL, {
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+    });
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      console.log("[Socket] Połączono z serwerem Real-time:", socket.id);
-      socket.emit("join-room", { boardId, username: "Użytkownik" });
+      setIsConnected(true);
+      // Przekazujemy imię zalogowanego użytkownika do pokoju
+      socket.emit("join-room", { boardId, username });
+    });
+
+    socket.on("disconnect", () => {
+      setIsConnected(false);
     });
 
     // 1. Odbiór stanu początkowego
@@ -179,7 +190,6 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
         const localElements = excalidrawAPI.getSceneElements();
         const appState = excalidrawAPI.getAppState();
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const restoredRemote = restoreElements(elements, localElements, {
           repairBindings: true,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -215,7 +225,6 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
         const localElements = excalidrawAPI.getSceneElements();
         const appState = excalidrawAPI.getAppState();
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const restoredRemote = restoreElements(remoteElements, localElements, {
           repairBindings: true,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -241,11 +250,17 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
     // 3. Odbiór kursorów
     socket.on(
       "server-pointer-update",
-      ({ socketId: remoteId, pointer, button, username, color }) => {
+      ({
+        socketId: remoteId,
+        pointer,
+        button,
+        username: remoteUsername,
+        color,
+      }) => {
         collaboratorsRef.current.set(remoteId, {
           pointer,
           button,
-          username,
+          username: remoteUsername,
           color,
         });
 
@@ -266,7 +281,7 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
     return () => {
       socket.disconnect();
     };
-  }, [excalidrawAPI, boardId]);
+  }, [excalidrawAPI, boardId, username]);
 
   // Obsługa zmian na tablicy z rebalansowaniem w locie
   const handleChange: ExcalidrawOnChange = useCallback(
@@ -328,6 +343,14 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
 
   return (
     <>
+      {/* Czerwony banner ostrzegawczy w przypadku rozłączenia z internetem/Socketem */}
+      {!isConnected && (
+        <div className="absolute top-0 left-0 right-0 z-9999 bg-destructive px-4 py-2 text-center text-sm font-semibold text-destructive-foreground shadow-md animate-in slide-in-from-top">
+          ⚠️ Utracono połączenie z serwerem. Próbuję połączyć ponownie...
+        </div>
+      )}
+
+      {/* Ekran ładowania do momentu, gdy Excalidraw jest gotowy do renderowania */}
       {!isReady && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-background">
           <Loader />
@@ -366,6 +389,7 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
           tools: { image: true },
         }}
       >
+        {/* Menu główne z opcjami pliku i zarządzania tablicą (Load, Save, Export, Clear, Background) */}
         <MainMenu>
           <MainMenu.DefaultItems.LoadScene />
           <MainMenu.DefaultItems.SaveToActiveFile />
@@ -381,6 +405,7 @@ export function ExcalidrawBoard({ boardId }: ExcalidrawBoardProps) {
           </MainMenu.ItemCustom>
         </MainMenu>
 
+        {/* Widok powitalny z instrukcjami i podpowiedziami */}
         <WelcomeScreen>
           <WelcomeScreen.Center>
             <WelcomeScreen.Center.Heading>
