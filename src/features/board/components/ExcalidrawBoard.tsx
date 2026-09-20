@@ -22,6 +22,7 @@ import {
 import "@excalidraw/excalidraw/index.css";
 import { Loader } from "@/components/layout/Loader";
 import { io, type Socket } from "socket.io-client";
+import { toast } from "sonner";
 
 type ExcalidrawOnChange = NonNullable<
   ComponentProps<typeof Excalidraw>["onChange"]
@@ -135,6 +136,7 @@ export function ExcalidrawBoard({ boardId, username }: ExcalidrawBoardProps) {
 
   const socketRef = useRef<Socket | null>(null);
   const lastReceivedVersionSumRef = useRef<number>(0);
+  const lastPointerUpdateRef = useRef<number>(0);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const collaboratorsRef = useRef<Map<string, any>>(new Map());
@@ -178,6 +180,11 @@ export function ExcalidrawBoard({ boardId, username }: ExcalidrawBoardProps) {
 
     socket.on("disconnect", () => {
       setIsConnected(false);
+    });
+
+    // Powiadomienie o dołączeniu nowego użytkownika
+    socket.on("user-joined", (user: { username: string }) => {
+      toast.success(`${user.username} dołączył(a) do pokoju`);
     });
 
     // 1. Odbiór stanu początkowego
@@ -272,6 +279,11 @@ export function ExcalidrawBoard({ boardId, username }: ExcalidrawBoardProps) {
 
     // 4. Odejście użytkownika
     socket.on("user-left", ({ socketId: remoteId }) => {
+      const user = collaboratorsRef.current.get(remoteId);
+      if (user?.username) {
+        toast.info(`${user.username} opuścił(a) pokój`);
+      }
+
       collaboratorsRef.current.delete(remoteId);
       excalidrawAPI.updateScene({
         collaborators: new Map(collaboratorsRef.current),
@@ -326,10 +338,14 @@ export function ExcalidrawBoard({ boardId, username }: ExcalidrawBoardProps) {
     [boardId, excalidrawAPI],
   );
 
-  // Wysyłanie kursorów na żywo
+  // Wysyłanie kursorów na żywo z throttle do ~30 FPS
   const handlePointerUpdate = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (payload: any) => {
+      const now = Date.now();
+      if (now - lastPointerUpdateRef.current < 33) return;
+      lastPointerUpdateRef.current = now;
+
       if (socketRef.current && socketRef.current.connected) {
         socketRef.current.emit("client-pointer-update", {
           boardId,
