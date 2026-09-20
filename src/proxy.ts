@@ -12,7 +12,7 @@ import type { NextRequest } from "next/server";
 // Klucz ciasteczka musi być spójny z tym definiowanym w tokenStorage
 const TOKEN_KEY = "matcoreki:auth:token";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Pobieramy token z ciasteczek HTTP dostępnych dla serwera
