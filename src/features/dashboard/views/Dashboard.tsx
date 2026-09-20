@@ -6,7 +6,7 @@
 "use client";
 
 import { LayoutDashboard, LogOut } from "lucide-react";
-import { useAuth } from "@/features/auth/use-auth";
+import { useAuth } from "@/features/auth/hook";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";

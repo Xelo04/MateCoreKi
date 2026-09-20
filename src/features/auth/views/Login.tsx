@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from "../use-auth";
+import { useAuth } from "../hook";
 import { loginSchema, LoginFormData } from "../schema";
 
 export function Login() {

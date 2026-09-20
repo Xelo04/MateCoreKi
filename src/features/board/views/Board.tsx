@@ -9,7 +9,7 @@
 import dynamic from "next/dynamic";
 import { Loader } from "@/components/layout/Loader";
 import type { BoardProps } from "../types";
-import { useAuth } from "@/features/auth/use-auth";
+import { useAuth } from "@/features/auth/hook";
 
 // Dynamiczny import wrappera z wyłączeniem SSR.
 const ExcalidrawBoard = dynamic(
