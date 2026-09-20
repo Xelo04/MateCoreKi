@@ -39,14 +39,10 @@ export default function Error({ reset }: ErrorPageProps) {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-sm mx-auto pt-2">
-          <Button onClick={reset} className="h-11 flex-1 font-medium gap-2">
+          <Button onClick={reset} className="flex-1">
             <RefreshCw className="h-4 w-4" /> Spróbuj ponownie
           </Button>
-          <Button
-            asChild
-            variant="outline"
-            className="h-11 flex-1 font-medium gap-2"
-          >
+          <Button asChild variant="outline" className="flex-1">
             <Link href="/">
               <Home className="h-4 w-4" /> Strona główna
             </Link>

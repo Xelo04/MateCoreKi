@@ -67,7 +67,6 @@ export function Register() {
                   id="firstName"
                   placeholder="Jan"
                   autoComplete="given-name"
-                  className="h-11"
                   {...register("firstName")}
                 />
                 {errors.firstName && (
@@ -82,7 +81,6 @@ export function Register() {
                   id="lastName"
                   placeholder="Kowalski"
                   autoComplete="family-name"
-                  className="h-11"
                   {...register("lastName")}
                 />
                 {errors.lastName && (
@@ -101,7 +99,6 @@ export function Register() {
                 type="email"
                 placeholder="jan@kowalski.pl"
                 autoComplete="email"
-                className="h-11"
                 {...register("email")}
               />
               {errors.email && (
@@ -119,7 +116,6 @@ export function Register() {
                 type="password"
                 placeholder="••••••••"
                 autoComplete="new-password"
-                className="h-11"
                 {...register("password")}
               />
               {errors.password && (
@@ -132,7 +128,7 @@ export function Register() {
             {/* Przycisk wysyłania formularza */}
             <Button
               type="submit"
-              className="h-11 w-full font-medium shadow-lg shadow-primary/20"
+              className="w-full shadow-lg shadow-primary/20"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Tworzenie konta..." : "Zarejestruj się"}
@@ -151,7 +147,7 @@ export function Register() {
           <Button
             type="button"
             variant="outline"
-            className="h-11 w-full gap-2.5 text-sm font-medium"
+            className="w-full"
             onClick={handleGoogleRegister}
           >
             <Image

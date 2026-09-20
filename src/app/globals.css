@@ -89,3 +89,12 @@
     transform: translateX(200%);
   }
 }
+
+/* Klasa do ukrywania paska przewijania w przewijanych horyzontalnie zakładkach */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

@@ -60,7 +60,7 @@ export function Login() {
               type="email"
               placeholder="jan@kowalski.pl"
               autoComplete="email"
-              className="h-11 pl-10"
+              className="pl-10"
               {...register("email")}
             />
           </div>
@@ -79,7 +79,7 @@ export function Login() {
               type="password"
               placeholder="••••••••"
               autoComplete="current-password"
-              className="h-11 pl-10"
+              className="pl-10"
               {...register("password")}
             />
           </div>
@@ -125,7 +125,7 @@ export function Login() {
         {/* Przycisk logowania tradycyjnego */}
         <Button
           type="submit"
-          className="h-11 w-full font-medium shadow-lg shadow-primary/20"
+          className="w-full shadow-lg shadow-primary/20"
           disabled={isSubmitting}
         >
           {isSubmitting ? (
@@ -151,7 +151,7 @@ export function Login() {
       <Button
         type="button"
         variant="outline"
-        className="h-11 w-full gap-2.5 text-sm font-medium"
+        className="w-full"
         onClick={handleGoogleLogin}
       >
         <Image

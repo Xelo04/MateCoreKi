@@ -61,7 +61,7 @@ export function ForgotPassword() {
         <p className="text-sm text-muted-foreground">
           Wysłaliśmy instrukcje resetowania hasła.
         </p>
-        <Button asChild className="w-full h-11">
+        <Button asChild className="w-full">
           <Link href="/login">Wróć do logowania</Link>
         </Button>
       </div>
@@ -86,7 +86,7 @@ export function ForgotPassword() {
               id="email"
               type="email"
               placeholder="jan@kowalski.pl"
-              className="h-11 pl-10"
+              className="pl-10"
               {...register("email")}
             />
           </div>
@@ -95,11 +95,7 @@ export function ForgotPassword() {
           )}
         </div>
 
-        <Button
-          type="submit"
-          className="h-11 w-full font-medium"
-          disabled={isSubmitting}
-        >
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? "Wysyłanie..." : "Wyślij link resetujący"}
         </Button>
       </form>

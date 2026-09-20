@@ -24,10 +24,10 @@ export function Landing() {
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button asChild size="lg">
+          <Button asChild>
             <Link href="/login">Zaloguj się</Link>
           </Button>
-          <Button asChild size="lg" variant="outline">
+          <Button asChild variant="outline">
             <Link href="/register">Zarejestruj się</Link>
           </Button>
         </div>

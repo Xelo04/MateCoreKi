@@ -32,7 +32,7 @@ export default function NotFound() {
         </div>
 
         <div className="flex justify-center pt-2">
-          <Button asChild className="h-11 px-6 font-medium gap-2">
+          <Button asChild>
             <Link href="/">
               <Home className="h-4 w-4" /> Wróć na stronę główną
             </Link>
