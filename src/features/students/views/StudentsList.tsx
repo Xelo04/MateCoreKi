@@ -80,6 +80,7 @@ export function StudentsList() {
           mathLevel: details.mathLevel,
           email: details.email || "",
           phone: details.phone || "",
+          parentPhone: details.parentPhone || "",
           hourlyRate: details.hourlyRate,
           notes: details.notes || "",
           scheduleSlots: details.scheduleSlots || [],

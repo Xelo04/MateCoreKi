@@ -164,6 +164,7 @@ export function StudentProfile({ id }: StudentProfileProps) {
           mathLevel: student.mathLevel,
           email: student.email || "",
           phone: student.phone || "",
+          parentPhone: student.parentPhone || "",
           hourlyRate: student.hourlyRate,
           notes: student.notes || "",
           scheduleSlots: student.scheduleSlots || [],

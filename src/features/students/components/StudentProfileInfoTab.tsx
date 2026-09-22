@@ -90,6 +90,17 @@ export function StudentInfoTab({
 
             <div className="flex flex-col gap-1">
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Telefon rodzica
+              </span>
+              <span className="text-sm font-semibold text-foreground">
+                {student.parentPhone
+                  ? formatPhone(student.parentPhone)
+                  : "Brak"}
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 E-mail
               </span>
               <span className="text-sm font-semibold text-foreground break-all">

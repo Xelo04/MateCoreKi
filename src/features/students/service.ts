@@ -44,6 +44,7 @@ const mapStudentDetails = (api: ApiStudentDetails): StudentDetails => ({
   hourlyRate: api.hourly_rate,
   email: api.email,
   phone: api.phone,
+  parentPhone: api.parent_phone,
   notes: api.notes,
   createdAt: new Date(api.created_at),
 });
@@ -51,7 +52,7 @@ const mapStudentDetails = (api: ApiStudentDetails): StudentDetails => ({
 const mapScheduleSlotToApi = (slot: ScheduleSlot): ApiScheduleSlot => ({
   // * UUID generowane na frontendzie ma 36 znaków. Nie wysyłamy go jako ID do utworzenia.
   id: slot.id.length === 36 ? undefined : slot.id,
-  day_of_week: slot.dayOfWeek,
+  day_of_week: slot.dayOfWeek ? slot.dayOfWeek : null,
   start_time: slot.startTime,
   duration_mins: slot.durationMins,
   recurrence: slot.recurrence,
@@ -66,6 +67,10 @@ const mapFormToApiPayload = (form: StudentFormData): ApiStudentPayload => ({
   math_level: form.mathLevel,
   email: form.email && form.email.length > 0 ? form.email.trim() : null,
   phone: form.phone && form.phone.length > 0 ? form.phone.trim() : null,
+  parent_phone:
+    form.parentPhone && form.parentPhone.length > 0
+      ? form.parentPhone.trim()
+      : null,
   hourly_rate: form.hourlyRate ?? null,
   notes: form.notes && form.notes.length > 0 ? form.notes : null,
   schedule_slots:
@@ -90,6 +95,7 @@ let mockDatabase: ApiStudentDetails[] = [
     hourly_rate: 150,
     email: "jan@kowalski.pl",
     phone: "123456789",
+    parent_phone: "987654321",
     notes: "Potrzebuje pomocy z trygonometrii",
     schedule_slots: [
       {
@@ -115,6 +121,7 @@ let mockDatabase: ApiStudentDetails[] = [
     hourly_rate: 120,
     email: null,
     phone: null,
+    parent_phone: null,
     notes: "Przygotowanie do E8",
     schedule_slots: null,
     created_at: "2024-02-15T14:30:00Z",
@@ -131,6 +138,7 @@ let mockDatabase: ApiStudentDetails[] = [
     hourly_rate: null,
     email: null,
     phone: null,
+    parent_phone: null,
     notes: null,
     schedule_slots: [
       {
@@ -172,6 +180,7 @@ let mockDatabase: ApiStudentDetails[] = [
     hourly_rate: 140,
     email: "michal@example.com",
     phone: null,
+    parent_phone: null,
     notes: "Zdał maturę",
     schedule_slots: null,
     created_at: "2023-09-01T08:00:00Z",
@@ -223,6 +232,7 @@ export const StudentService = {
       hourly_rate: payload.hourly_rate,
       email: payload.email,
       phone: payload.phone,
+      parent_phone: payload.parent_phone,
       notes: payload.notes,
       schedule_slots: payload.schedule_slots,
       created_at: new Date().toISOString(),

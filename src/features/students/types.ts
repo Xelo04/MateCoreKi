@@ -13,7 +13,7 @@ export type Recurrence = "none" | "weekly" | "biweekly";
 
 export interface ApiScheduleSlot {
   id?: string;
-  day_of_week: number;
+  day_of_week: number | null;
   start_time: string;
   duration_mins: number;
   recurrence: Recurrence;
@@ -22,7 +22,7 @@ export interface ApiScheduleSlot {
 
 export interface ScheduleSlot {
   id: string;
-  dayOfWeek: DayOfWeek;
+  dayOfWeek?: DayOfWeek;
   startTime: string; // "HH:MM"
   durationMins: number;
   recurrence: Recurrence;
@@ -57,6 +57,7 @@ export interface ApiStudentDetails extends ApiStudentListItem {
   hourly_rate: number | null;
   email: string | null;
   phone: string | null;
+  parent_phone: string | null;
   notes: string | null;
   created_at: string;
 }
@@ -65,6 +66,7 @@ export interface StudentDetails extends StudentListItem {
   hourlyRate: number | null;
   email: string | null;
   phone: string | null;
+  parentPhone: string | null;
   notes: string | null;
   createdAt: Date;
 }

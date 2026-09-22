@@ -14,15 +14,17 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const scheduleSlotSchema = z
   .object({
     id: z.string(),
-    dayOfWeek: z.union([
-      z.literal(1),
-      z.literal(2),
-      z.literal(3),
-      z.literal(4),
-      z.literal(5),
-      z.literal(6),
-      z.literal(7),
-    ]),
+    dayOfWeek: z
+      .union([
+        z.literal(1),
+        z.literal(2),
+        z.literal(3),
+        z.literal(4),
+        z.literal(5),
+        z.literal(6),
+        z.literal(7),
+      ])
+      .optional(),
     startTime: z
       .string()
       .regex(TIME_REGEX, "Format godziny musi być GG:MM (np. 16:30)"),
@@ -38,6 +40,13 @@ const scheduleSlotSchema = z
       .optional()
       .or(z.literal("")),
   })
+  .refine(
+    (slot) => slot.recurrence === "none" || slot.dayOfWeek !== undefined,
+    {
+      message: "Wybierz dzień tygodnia",
+      path: ["dayOfWeek"],
+    },
+  )
   .refine((slot) => slot.recurrence !== "none" || !!slot.date, {
     message: "Jednorazowe spotkanie wymaga wybrania daty",
     path: ["date"],
@@ -74,6 +83,13 @@ export const studentFormSchema = z
       .regex(PHONE_REGEX, "Numer telefonu musi mieć dokładnie 9 cyfr")
       .optional()
       .or(z.literal("")),
+
+    parentPhone: z
+      .string()
+      .regex(PHONE_REGEX, "Numer telefonu musi mieć dokładnie 9 cyfr")
+      .optional()
+      .or(z.literal("")),
+
     hourlyRate: z
       .number({ message: "Podaj kwotę" })
       .min(0, "Stawka nie może być ujemna")

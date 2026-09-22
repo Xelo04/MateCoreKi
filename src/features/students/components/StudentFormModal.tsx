@@ -58,6 +58,7 @@ const DEFAULT_VALUES: StudentFormData = {
   mathLevel: "basic",
   email: "",
   phone: "",
+  parentPhone: "",
   hourlyRate: null,
   notes: "",
   scheduleSlots: [],
@@ -112,6 +113,7 @@ export function StudentFormModal({
   const educationType = useWatch({ control, name: "educationType" });
   const classYear = useWatch({ control, name: "classYear" });
   const phoneValue = useWatch({ control, name: "phone" });
+  const parentPhoneValue = useWatch({ control, name: "parentPhone" });
 
   const availableYears = useMemo(
     () => getClassYearsForEducation(educationType),
@@ -176,6 +178,21 @@ export function StudentFormModal({
   const phoneDisplay = useMemo(
     () => formatPhoneDisplay(phoneValue || ""),
     [phoneValue],
+  );
+
+  // * Obsługa zmiany pola telefonu rodzica (formatowanie i walidacja)
+  const handleParentPhoneChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setValue("parentPhone", stripPhoneToDigits(e.target.value), {
+        shouldValidate: true,
+      });
+    },
+    [setValue],
+  );
+
+  const parentPhoneDisplay = useMemo(
+    () => formatPhoneDisplay(parentPhoneValue || ""),
+    [parentPhoneValue],
   );
 
   // * Czy modal jest w trybie edycji czy dodawania
@@ -339,8 +356,8 @@ export function StudentFormModal({
               <Phone className="h-4 w-4 text-primary" />
               Pozostałe informacje
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5 md:col-span-3">
                 <Label>Email</Label>
                 <Input
                   type="email"
@@ -354,7 +371,7 @@ export function StudentFormModal({
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label>Telefon</Label>
+                <Label>Telefon ucznia</Label>
                 <Input
                   type="tel"
                   inputMode="numeric"
@@ -369,8 +386,24 @@ export function StudentFormModal({
                   </p>
                 )}
               </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label>Stawka godzinowa (zł)</Label>
+              <div className="space-y-1.5">
+                <Label>Telefon rodzica</Label>
+                <Input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="123 456 789"
+                  maxLength={11}
+                  value={parentPhoneDisplay}
+                  onChange={handleParentPhoneChange}
+                />
+                {errors.parentPhone && (
+                  <p className="text-xs text-destructive">
+                    {errors.parentPhone.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Stawka (zł/h)</Label>
                 <Input
                   type="number"
                   min={0}
