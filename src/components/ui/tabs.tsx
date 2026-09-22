@@ -41,19 +41,36 @@ const Tabs = React.forwardRef<
 });
 Tabs.displayName = TabsPrimitive.Root.displayName;
 
+interface TabsListProps extends React.ComponentPropsWithoutRef<
+  typeof TabsPrimitive.List
+> {
+  cols?: 2 | 3 | 4 | 5;
+}
+
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.List
-    ref={ref}
-    className={cn(
-      "flex h-11 w-full items-center overflow-x-auto overflow-y-hidden rounded-full bg-secondary/70 p-1 text-muted-foreground shadow-inner relative snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none",
-      className,
-    )}
-    {...props}
-  />
-));
+  TabsListProps
+>(({ className, cols = 2, ...props }, ref) => {
+  // * Dynamicznie dobieramy siatkę w zależności od ilości zakładek
+  const gridClass = {
+    2: "grid-cols-1 sm:grid-cols-2",
+    3: "grid-cols-1 sm:grid-cols-3",
+    4: "grid-cols-2 lg:grid-cols-4", // Na mobile 2x2, na desktop 1x4
+    5: "grid-cols-2 md:grid-cols-3 lg:grid-cols-5",
+  }[cols];
+
+  return (
+    <TabsPrimitive.List
+      ref={ref}
+      className={cn(
+        "grid h-auto w-full items-center justify-center gap-1.5 rounded-full bg-muted/70 p-1 text-muted-foreground",
+        gridClass,
+        className,
+      )}
+      {...props}
+    />
+  );
+});
 TabsList.displayName = TabsPrimitive.List.displayName;
 
 const TabsTrigger = React.forwardRef<
@@ -68,8 +85,8 @@ const TabsTrigger = React.forwardRef<
       ref={ref}
       value={value}
       className={cn(
-        "relative inline-flex h-full flex-1 snap-center items-center justify-center whitespace-nowrap rounded-full px-6 py-2 text-sm font-semibold transition-colors outline-none disabled:pointer-events-none disabled:opacity-50",
-        "text-primary/70 hover:text-primary",
+        "relative inline-flex h-10 w-full cursor-pointer select-none items-center justify-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold tracking-wide outline-none transition-colors disabled:pointer-events-none disabled:opacity-50",
+        "text-muted-foreground hover:text-foreground",
         "data-[state=active]:text-primary-foreground",
         className,
       )}

@@ -1,25 +1,16 @@
 // ==========================================
-// WIDOK: Główny panel sterowania (Dashboard)
+// WIDOK: Główny panel sterowania (Dashboard) / Design System
 // ==========================================
-// Ekran widoczny po pomyślnym zalogowaniu.
 
 "use client";
 
-import { LayoutDashboard, LogOut } from "lucide-react";
 import { useAuth } from "@/features/auth/hook";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,14 +22,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -47,20 +30,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 import {
   Plus,
-  Pencil,
-  Trash2,
-  MoreVertical,
   GraduationCap,
   Palette,
   Type,
   Component,
+  LayoutTemplate,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Pomocniczy komponent do wyświetlania kafelków z kolorami
 function ColorSwatch({
   bgClass,
   textClass,
@@ -92,54 +78,28 @@ function ColorSwatch({
 }
 
 export function Dashboard() {
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
 
   return (
-    // <main className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
-    //   <div className="w-full max-w-xl space-y-8 rounded-2xl border border-border p-8 bg-card shadow-sm text-center">
-    //     <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-    //       <LayoutDashboard className="h-6 w-6" />
-    //     </div>
-
-    //     <div className="space-y-2">
-    //       <h1 className="text-3xl font-bold tracking-tight">
-    //         Panel Korepetytora
-    //       </h1>
-    //       <p className="text-sm text-muted-foreground">
-    //         Witaj w systemie,{" "}
-    //         <span className="font-semibold text-foreground">
-    //           {session?.user.firstName}
-    //         </span>
-    //         !
-    //       </p>
-    //     </div>
-
-    //     <div className="pt-4 border-t border-border flex justify-between items-center">
-    //       <span className="text-xs text-muted-foreground">
-    //         Zalogowany jako: {session?.user.email}
-    //       </span>
-    //       <Button
-    //         variant="outline"
-    //         size="sm"
-    //         onClick={logout}
-    //         className="gap-2"
-    //       >
-    //         <LogOut className="h-4 w-4" /> Wyloguj się
-    //       </Button>
-    //     </div>
-    //   </div>
-    // </main>
     <div className="flex flex-col space-y-12 pb-16">
       {/* NAGŁÓWEK */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Identyfikacja Wizualna & UI
-        </h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Identyfikacja Wizualna & UI
+          </h1>
+          <p className="mt-2 text-muted-foreground max-w-2xl">
+            Witaj,{" "}
+            <span className="font-semibold text-foreground">
+              {session?.user.firstName || "Korepetytorze"}
+            </span>
+            . Oto zbiór ustandaryzowanych komponentów (Design System) platformy
+            MatCoreKi.
+          </p>
+        </div>
       </div>
 
-      {/* ==========================================
-          SEKCJA 1: KOLORY (BRAND PALETTE)
-          ========================================== */}
+      {/* 1: KOLORY (BRAND PALETTE) */}
       <section className="space-y-6">
         <div className="flex items-center gap-2 border-b border-border pb-2">
           <Palette className="h-5 w-5 text-primary" />
@@ -183,9 +143,7 @@ export function Dashboard() {
         </div>
       </section>
 
-      {/* ==========================================
-          SEKCJA 2: TYPOGRAFIA
-          ========================================== */}
+      {/* 2: TYPOGRAFIA */}
       <section className="space-y-6">
         <div className="flex items-center gap-2 border-b border-border pb-2">
           <Type className="h-5 w-5 text-primary" />
@@ -225,27 +183,14 @@ export function Dashboard() {
             </div>
             <p className="text-base leading-relaxed text-foreground max-w-2xl">
               To jest standardowy tekst akapitu. Aplikacja wspomagająca pracę
-              korepetytorów matematyki (System Supporting the Work of
-              Mathematics Tutors). Oferuje moduł zadań z generatorem LLM oraz
-              interaktywną tablicę.
-            </p>
-          </div>
-          <Separator />
-          <div className="flex flex-col md:flex-row gap-4 md:items-start">
-            <div className="w-32 shrink-0 text-sm font-medium text-muted-foreground">
-              Muted / Small
-            </div>
-            <p className="text-sm font-medium text-muted-foreground">
-              Tekst pomocniczy, używany w opisach formularzy, datach i
-              podpisach.
+              korepetytorów matematyki. Oferuje moduł zadań z generatorem LLM
+              oraz interaktywną tablicę.
             </p>
           </div>
         </div>
       </section>
 
-      {/* ==========================================
-          SEKCJA 3: KOMPONENTY (BUTTONS & BADGES)
-          ========================================== */}
+      {/* 3: PRZYCISKI I STATUSY */}
       <section className="space-y-6">
         <div className="flex items-center gap-2 border-b border-border pb-2">
           <Component className="h-5 w-5 text-primary" />
@@ -253,7 +198,6 @@ export function Dashboard() {
             Przyciski i Statusy (Buttons & Badges)
           </h2>
         </div>
-        {/* ZMIANA: grid-cols-1 na start (mobile), od sm:grid-cols-2, md:grid-cols-4 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 bg-card p-8 border border-border rounded-2xl shadow-sm">
           <div className="flex flex-col space-y-3">
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -289,7 +233,6 @@ export function Dashboard() {
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">
               Statusy (Badges)
             </Label>
-            {/* ZMIANA: Dodano flex-wrap, żeby spływały do nowej linii */}
             <div className="flex flex-wrap gap-3">
               <Badge>Aktywny</Badge>
               <Badge variant="secondary">Zawieszony</Badge>
@@ -300,9 +243,7 @@ export function Dashboard() {
         </div>
       </section>
 
-      {/* ==========================================
-          SEKCJA 4: FORMULARZE
-          ========================================== */}
+      {/* 4: FORMULARZE */}
       <section className="space-y-6">
         <h2 className="text-xl font-semibold border-b border-border pb-2">
           Formularze (Input, Select, Textarea)
@@ -312,7 +253,6 @@ export function Dashboard() {
             <Label htmlFor="email">E-mail ucznia</Label>
             <Input id="email" type="email" placeholder="jan@kowalski.pl" />
           </div>
-
           <div className="space-y-3">
             <Label>Dział tematyczny (Select)</Label>
             <Select>
@@ -328,7 +268,6 @@ export function Dashboard() {
               </SelectContent>
             </Select>
           </div>
-
           <div className="space-y-3 col-span-full">
             <Label>Treść zadania (Textarea)</Label>
             <Textarea
@@ -339,110 +278,58 @@ export function Dashboard() {
         </div>
       </section>
 
-      {/* ==========================================
-          SEKCJA 5: UKŁADY (KARTY, MODALE)
-          ========================================== */}
+      {/* 5: UKŁADY (AKORDEON, MODAL, TABS) */}
       <section className="space-y-6">
-        <h2 className="text-xl font-semibold border-b border-border pb-2">
-          Układy Złożone (Karty, Zakładki, Modale)
-        </h2>
+        <div className="flex items-center gap-2 border-b border-border pb-2">
+          <LayoutTemplate className="h-5 w-5 text-primary" />
+          <h2 className="text-xl font-semibold">Układy Złożone</h2>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {/* KARTA UCZNIA Z DROPDOWNEM */}
-          <Card className="rounded-2xl shadow-md border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <div>
-                <CardTitle className="text-xl">Jan Kowalski</CardTitle>
-                <CardDescription>
-                  Klasa maturalna, poziom rozszerzony
-                </CardDescription>
+          {/* PRZYKŁAD MODALA I TABSÓW W KARCIE */}
+          <Card className="rounded-2xl shadow-sm border-border/50 flex flex-col justify-between">
+            <div className="p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <GraduationCap className="h-6 w-6 text-primary" />
+                <h3 className="text-xl font-semibold">
+                  Modale (Dialogi) i Zakładki
+                </h3>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 rounded-full"
-                  >
-                    <MoreVertical className="h-5 w-5 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuLabel>Akcje</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <Pencil className="mr-2 h-4 w-4" /> Edytuj
-                  </DropdownMenuItem>
-                  {/* WARIANT DESTRUCTIVE W DROPDOWN (Zgodnie z wczorajszym fixem CSS) */}
-                  <DropdownMenuItem variant="destructive">
-                    <Trash2 className="mr-2 h-4 w-4" /> Usuń
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </CardHeader>
-            <CardContent className="overflow-hidden">
-              <Tabs defaultValue="info" className="w-full">
+              <p className="text-sm text-muted-foreground mb-6">
+                Wyskakujące okienka do ważnych interakcji i akceptacji.
+              </p>
+
+              <Tabs defaultValue="info" className="w-full mb-6">
                 <TabsList className="mb-6 w-full max-w-[calc(100vw-4rem)] md:max-w-none">
                   <TabsTrigger value="info">Informacje</TabsTrigger>
                   <TabsTrigger value="stats">Statystyki</TabsTrigger>
-                  <TabsTrigger value="tests">Testy & Prace</TabsTrigger>
                 </TabsList>
-
                 <TabsContent
                   value="info"
                   className="text-sm text-muted-foreground space-y-3"
                 >
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span>Najbliższe zajęcia:</span>
-                    <span className="font-medium text-foreground">
-                      Piątek, 16:30
-                    </span>
-                  </div>
-                  <div className="flex justify-between pb-2">
-                    <span>Główny cel:</span>
-                    <span className="font-medium text-foreground">
-                      Matura Rozszerzona (80%+)
-                    </span>
-                  </div>
+                  Wnętrze zakładki informacji.
                 </TabsContent>
                 <TabsContent
                   value="stats"
-                  className="text-sm text-muted-foreground flex h-16 items-center justify-center border border-dashed rounded-lg"
+                  className="text-sm text-muted-foreground"
                 >
-                  Wykresy pojawią się tutaj.
-                </TabsContent>
-                <TabsContent
-                  value="tests"
-                  className="text-sm text-muted-foreground flex h-16 items-center justify-center border border-dashed rounded-lg"
-                >
-                  Wyniki testów pojawią się tutaj.
+                  Wnętrze zakładki statystyk.
                 </TabsContent>
               </Tabs>
-            </CardContent>
-          </Card>
 
-          {/* KARTA Z MODALEM I CHECKBOXEM */}
-          <Card className="rounded-2xl shadow-md border-border/50 flex flex-col justify-between">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <GraduationCap className="h-6 w-6 text-primary" /> Modale i
-                Checkboxy
-              </CardTitle>
-              <CardDescription>
-                Wyskakujące okienka do ważnych interakcji i akceptacji.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
               <div className="flex items-center space-x-3 p-4 bg-secondary/50 rounded-xl border border-border/50">
                 <Checkbox id="req" />
                 <Label
                   htmlFor="req"
                   className="font-medium cursor-pointer text-sm"
                 >
-                  Wyślij automatyczne powiadomienie SMS uczniowi przed lekcją
+                  Wyślij automatyczne powiadomienie SMS
                 </Label>
               </div>
-            </CardContent>
-            <CardFooter>
+            </div>
+
+            <div className="p-6 pt-0">
               <Dialog>
                 <DialogTrigger asChild>
                   <Button className="w-full">
@@ -453,8 +340,7 @@ export function Dashboard() {
                   <DialogHeader>
                     <DialogTitle>Dodaj nowego ucznia</DialogTitle>
                     <DialogDescription>
-                      Wprowadź podstawowe dane. Otrzyma on automatyczny e-mail z
-                      linkiem do swojego panelu.
+                      Wprowadź podstawowe dane ucznia.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
@@ -464,14 +350,34 @@ export function Dashboard() {
                     </div>
                   </div>
                   <DialogFooter>
-                    {/* W modalu używamy przycisków w układzie obok siebie (wspierane przez DialogFooter) */}
                     <Button variant="outline">Anuluj</Button>
                     <Button>Dodaj ucznia</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-            </CardFooter>
+            </div>
           </Card>
+
+          {/* AKORDEON (PRZYKŁAD UŻYCIA ARCHIWUM) */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">
+              Akordeon (np. dla sekcji archiwum)
+            </h3>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="archive" className="border-none">
+                <AccordionTrigger className="hover:no-underline py-4 px-6 rounded-2xl bg-muted/40 hover:bg-muted/60 transition-colors border border-border/50">
+                  <span className="font-semibold text-muted-foreground">
+                    Rozwiń ukryte elementy (3)
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="pt-6 pb-2 px-2 text-muted-foreground text-sm">
+                  Tutaj pojawią się rzadziej używane informacje, np.
+                  zarchiwizowane karty, długa historia zmian czy polityka
+                  prywatności.
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
         </div>
       </section>
     </div>
