@@ -34,7 +34,7 @@ export function StudentProfile({ id }: StudentProfileProps) {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-6xl pb-16 pt-4">
+      <div className="mx-auto max-w-6xl pb-4 pt-4">
         {/* Przycisk powrotu */}
         <Button
           variant="ghost"
@@ -69,7 +69,7 @@ export function StudentProfile({ id }: StudentProfileProps) {
   };
 
   return (
-    <div className="mx-auto max-w-6xl pb-16 pt-4">
+    <div className="mx-auto max-w-6xl pb-4 pt-4">
       {/* Nawigacja */}
       <Button
         variant="ghost"
