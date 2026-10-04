@@ -1,3 +1,7 @@
+// ==========================================
+// KOMPONENT UI: TimePicker
+// ==========================================
+
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -10,7 +14,7 @@ import {
 } from "@/components/ui/select";
 
 interface TimePickerProps {
-  value?: string;
+  value?: string; // "HH:MM" lub ""
   onChange?: (time: string) => void;
   disabled?: boolean;
   className?: string;
@@ -67,13 +71,14 @@ export function TimePicker({
         className,
       )}
     >
+      {/* GODZINA */}
       <Select
         value={h || undefined}
         onValueChange={handleHourChange}
         disabled={disabled}
       >
         <SelectTrigger
-          className="h-full w-1/2 border-0 bg-transparent shadow-none focus:ring-0 focus:border-0 data-[state=open]:border-0 font-sans justify-center rounded-l-xl rounded-r-none"
+          className="h-full w-1/2 border-0 bg-transparent shadow-none focus:ring-0 focus:border-0 data-[state=open]:border-0 font-sans justify-center rounded-l-xl rounded-r-none px-3 [&>svg]:ml-4"
           aria-label="Godzina"
         >
           <SelectValue placeholder="GG" />
@@ -87,17 +92,19 @@ export function TimePicker({
         </SelectContent>
       </Select>
 
+      {/* Separator */}
       <span className="shrink-0 text-muted-foreground font-medium select-none">
         :
       </span>
 
+      {/* MINUTA */}
       <Select
         value={normalizedM || undefined}
         onValueChange={handleMinuteChange}
         disabled={disabled}
       >
         <SelectTrigger
-          className="h-full w-1/2 border-0 bg-transparent shadow-none focus:ring-0 focus:border-0 data-[state=open]:border-0 font-sans justify-center rounded-r-xl rounded-l-none"
+          className="h-full w-1/2 border-0 bg-transparent shadow-none focus:ring-0 focus:border-0 data-[state=open]:border-0 font-sans justify-center rounded-r-xl rounded-l-none px-3 [&>svg]:ml-4"
           aria-label="Minuta"
         >
           <SelectValue placeholder="MM" />

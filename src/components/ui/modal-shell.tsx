@@ -19,11 +19,12 @@ interface ModalShellProps {
   title: string;
   children: React.ReactNode;
   formId?: string;
-  submitLabel: string;
+  submitLabel?: string;
   cancelLabel?: string;
   isSubmitting?: boolean;
   onClose: () => void;
   className?: string;
+  hideFooter?: boolean;
 }
 
 export function ModalShell({
@@ -33,26 +34,23 @@ export function ModalShell({
   title,
   children,
   formId,
-  submitLabel,
+  submitLabel = "Zapisz",
   cancelLabel = "Anuluj",
   isSubmitting = false,
   onClose,
   className,
+  hideFooter = false,
 }: ModalShellProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          // * border-0, p-0, flex column
           "flex max-w-2xl max-h-[90vh] flex-col overflow-hidden p-0 gap-0 border-0 shadow-2xl",
-          // * Ukrywamy DOMYŚLNY X z shadcn DialogContent (renderujemy własny)
           "[&>button]:hidden",
           className,
         )}
-        // * Pozwól klikać w portale (Popover/Select/Calendar) bez zamykania modala
         onInteractOutside={(e) => {
           const target = e.target as HTMLElement;
-          // * Klik w popover/select/portal → nie zamykaj dialogu
           if (
             target.closest("[data-radix-popper-content-wrapper]") ||
             target.closest("[data-slot='popover-content']") ||
@@ -86,25 +84,29 @@ export function ModalShell({
 
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
 
-        <DialogFooter className="shrink-0 px-6 py-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            {cancelLabel}
-          </Button>
-          <Button
-            type="submit"
-            form={formId}
-            disabled={isSubmitting}
-            className="shadow-md shadow-primary/20"
-          >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {submitLabel}
-          </Button>
-        </DialogFooter>
+        {!hideFooter && (
+          <DialogFooter className="shrink-0 px-6 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              {cancelLabel}
+            </Button>
+            <Button
+              type="submit"
+              form={formId}
+              disabled={isSubmitting}
+              className="shadow-md shadow-primary/20"
+            >
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {submitLabel}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

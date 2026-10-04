@@ -8,30 +8,19 @@ import {
   Clock,
   CalendarRange,
   Repeat,
-  Pencil,
   StickyNote,
   UserCircle,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { StudentDetails } from "../types";
-import {
-  formatEducationLabelFull,
-  formatSchedulesForCard,
-  getInitials,
-} from "../utils";
+import { formatSchedulesForCard } from "../utils";
 import { cn } from "@/lib/utils";
 
 interface StudentInfoTabProps {
   student: StudentDetails;
   colorInfo: { solid: string; glow: string };
-  onEditClick: () => void;
 }
 
-export function StudentInfoTab({
-  student,
-  colorInfo,
-  onEditClick,
-}: StudentInfoTabProps) {
+export function StudentInfoTab({ student, colorInfo }: StudentInfoTabProps) {
   const schedules = formatSchedulesForCard(student.scheduleSlots);
 
   const formatPhone = (phone: string) => {
@@ -40,37 +29,6 @@ export function StudentInfoTab({
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-        <div className="flex items-center gap-5">
-          <div
-            className={cn(
-              "flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-md",
-              colorInfo.solid,
-            )}
-          >
-            {getInitials(student.firstName, student.lastName)}
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              {student.firstName} {student.lastName}
-            </h1>
-            <p className="mt-0.5 text-sm font-medium text-muted-foreground">
-              {formatEducationLabelFull(
-                student.educationType,
-                student.classYear,
-                student.mathLevel,
-              )}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button onClick={onEditClick}>
-            <Pencil className="mr-2 h-4 w-4" /> Edytuj
-          </Button>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {/* KAFELEK: Pozostałe informacje */}
         <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">

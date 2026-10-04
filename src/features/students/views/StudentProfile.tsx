@@ -11,16 +11,22 @@ import {
   Calendar as CalendarIcon,
   FilePenLine,
   Clock4,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContentLoader } from "@/components/layout/ContentLoader";
 
 import { useStudentDetails } from "../hook";
-import { getStudentColor } from "../utils";
+import {
+  getStudentColor,
+  getInitials,
+  formatEducationLabelFull,
+} from "../utils";
 import { StudentFormModal } from "../components/StudentFormModal";
 import { StudentInfoTab } from "../components/StudentProfileInfoTab";
 import type { StudentFormData } from "../schema";
+import { cn } from "@/lib/utils";
 
 interface StudentProfileProps {
   id: string;
@@ -73,11 +79,43 @@ export function StudentProfile({ id }: StudentProfileProps) {
       {/* Nawigacja */}
       <Button
         variant="ghost"
-        className="-ml-4 mb-6 w-fit text-muted-foreground hover:text-foreground"
+        className="-ml-4 mb-4 w-fit text-muted-foreground hover:text-foreground"
         onClick={() => router.push("/students")}
       >
         <ArrowLeft className="mr-2 h-4 w-4" /> Wróć do uczniów
       </Button>
+
+      {/* Nagłówek z imieniem i nazwiskiem ucznia */}
+      <div className="flex flex-col mb-6 md:flex-row md:items-center justify-between gap-6 rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+        <div className="flex items-center gap-5">
+          <div
+            className={cn(
+              "flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-md",
+              colorInfo.solid,
+            )}
+          >
+            {getInitials(student.firstName, student.lastName)}
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {student.firstName} {student.lastName}
+            </h1>
+            <p className="mt-0.5 text-sm font-medium text-muted-foreground">
+              {formatEducationLabelFull(
+                student.educationType,
+                student.classYear,
+                student.mathLevel,
+              )}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Button onClick={() => setIsEditOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" /> Edytuj
+          </Button>
+        </div>
+      </div>
 
       {/* ZAKŁADKI */}
       <Tabs defaultValue="info" className="w-full">
@@ -89,11 +127,7 @@ export function StudentProfile({ id }: StudentProfileProps) {
         </TabsList>
 
         <TabsContent value="info" className="focus-visible:outline-none">
-          <StudentInfoTab
-            student={student}
-            colorInfo={colorInfo}
-            onEditClick={() => setIsEditOpen(true)}
-          />
+          <StudentInfoTab student={student} colorInfo={colorInfo} />
         </TabsContent>
 
         <TabsContent

@@ -1,6 +1,7 @@
 // ==========================================
-// UTILS: Konwersje dat, reguły cykliczne, ekspansja wirtualnych klocków
+// UTILS: Konwersje dat i reguły kalendarza
 // ==========================================
+// Czyste funkcje do operacji na czasie, datach i cykliczności slotów.
 
 import type {
   CalendarLessonItem,
@@ -10,47 +11,78 @@ import type {
   ScheduleSlot,
 } from "./types";
 
-const pad = (n: number) => String(n).padStart(2, "0");
+// * Wspólna lista dni tygodnia dla selectów w formularzach
+export const WEEK_DAYS = [
+  { value: 1, label: "Poniedziałek" },
+  { value: 2, label: "Wtorek" },
+  { value: 3, label: "Środa" },
+  { value: 4, label: "Czwartek" },
+  { value: 5, label: "Piątek" },
+  { value: 6, label: "Sobota" },
+  { value: 7, label: "Niedziela" },
+] as const;
 
+const pad = (n: number): string => String(n).padStart(2, "0");
+
+// * Date -> "YYYY-MM-DD" w strefie lokalnej
 export const toDateKey = (d: Date): string =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
+// * "YYYY-MM-DD" -> Date. Ustawiamy T12:00:00 żeby uniknąć przesunięcia DST.
+// ! Nigdy nie używaj new Date("YYYY-MM-DD") bezpośrednio!
 export const parseDateKey = (key: string): Date => {
   const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, m - 1, d);
+  return new Date(y, m - 1, d, 12, 0, 0);
 };
 
-/** JS: 0=Niedz … 6=Sob → nasz DayOfWeek 1=Pon … 7=Niedz */
+// * Konwersja JS getDay() (0=niedz) na ISO (7=niedz)
 export const jsDayToDayOfWeek = (jsDay: number): DayOfWeek =>
   (jsDay === 0 ? 7 : jsDay) as DayOfWeek;
 
+// * Klucz naturalny lekcji — studentId + date + startTime
 export const naturalLessonKey = (
   studentId: string,
   date: string,
   startTime: string,
 ): string => `${studentId}|${date}|${startTime}`;
 
-/**
- * Hierarchia startu reguły cyklicznej:
- * slot.date (start cyklu) → slot.createdAt → student.createdAt
- */
-export const getSlotEffectiveStart = (slot: ScheduleSlot): Date => {
-  if (slot.date) {
-    const d = parseDateKey(slot.date);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-  const c = new Date(slot.createdAt);
-  c.setHours(0, 0, 0, 0);
-  return c;
+// * ID lekcji wirtualnej (z harmonogramu, bez wpisu w DB)
+export const virtualId = (
+  studentId: string,
+  date: string,
+  startTime: string,
+): string => `v-${studentId}-${date}-${startTime}`;
+
+// * "HH:MM" -> liczba minut od północy
+export const timeToMinutes = (time: string): number => {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
 };
 
+// * Dodaje minuty do "HH:MM", zwraca nowy czas (modulo 24h)
+export const addMinutesToTime = (
+  startTime: string,
+  durationMins: number,
+): string => {
+  const endMins = timeToMinutes(startTime) + durationMins;
+  const h = Math.floor(endMins / 60) % 24;
+  const m = endMins % 60;
+  return `${pad(h)}:${pad(m)}`;
+};
+
+// * Data startu obowiązywania slotu (znormalizowana do 00:00)
+export const getSlotEffectiveStart = (slot: ScheduleSlot): Date => {
+  const source = slot.date ? parseDateKey(slot.date) : new Date(slot.createdAt);
+  source.setHours(0, 0, 0, 0);
+  return source;
+};
+
+// * Czy slot jest aktywny w danym dniu (między startem a endedAt)
 export const isSlotActiveOnDate = (slot: ScheduleSlot, day: Date): boolean => {
   const dayStart = new Date(day);
   dayStart.setHours(0, 0, 0, 0);
 
-  const start = getSlotEffectiveStart(slot);
-  if (dayStart < start) return false;
+  if (dayStart < getSlotEffectiveStart(slot)) return false;
 
   if (slot.endedAt) {
     const end = new Date(slot.endedAt);
@@ -61,28 +93,26 @@ export const isSlotActiveOnDate = (slot: ScheduleSlot, day: Date): boolean => {
   return true;
 };
 
-/** Czy day wpada w weekly / biweekly względem kotwicy startu */
+// * Czy w danym dniu slot wygeneruje lekcję (none/weekly/biweekly)
 export const matchesRecurrence = (slot: ScheduleSlot, day: Date): boolean => {
   if (slot.recurrence === "none") {
-    if (!slot.date) return false;
-    return toDateKey(day) === slot.date;
+    return !!slot.date && toDateKey(day) === slot.date;
   }
 
   if (slot.dayOfWeek === undefined) return false;
   if (jsDayToDayOfWeek(day.getDay()) !== slot.dayOfWeek) return false;
   if (!isSlotActiveOnDate(slot, day)) return false;
-
   if (slot.recurrence === "weekly") return true;
 
-  // biweekly: cotygodniowe pary od daty startu reguły
+  // * biweekly — parzyste tygodnie od startu slotu
   const start = getSlotEffectiveStart(slot);
   const diffDays = Math.floor(
     (day.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
   );
-  const diffWeeks = Math.floor(diffDays / 7);
-  return diffWeeks % 2 === 0;
+  return Math.floor(diffDays / 7) % 2 === 0;
 };
 
+// * Tablica dni Date w zakresie [from, to] (domknięty obustronnie dla widoku)
 export const eachDateInRange = (from: string, to: string): Date[] => {
   const out: Date[] = [];
   const cur = parseDateKey(from);
@@ -94,15 +124,7 @@ export const eachDateInRange = (from: string, to: string): Date[] => {
   return out;
 };
 
-export const virtualId = (
-  studentId: string,
-  date: string,
-  startTime: string,
-): string => `v-${studentId}-${date}-${startTime}`;
-
-/**
- * Z reguł uczniów buduje wirtualne klocki w oknie [from, to].
- */
+// * Rozwija reguły harmonogramu uczniów w wirtualne lekcje na zakres dat
 export const expandScheduleToItems = (
   students: CalendarStudentSource[],
   from: string,
@@ -112,8 +134,7 @@ export const expandScheduleToItems = (
   const items: CalendarLessonItem[] = [];
 
   for (const student of students) {
-    const slots = student.scheduleSlots ?? [];
-    for (const slot of slots) {
+    for (const slot of student.scheduleSlots ?? []) {
       for (const day of days) {
         if (!matchesRecurrence(slot, day)) continue;
 
@@ -130,10 +151,7 @@ export const expandScheduleToItems = (
           topic: null,
           tutorNotes: null,
           boardId: null,
-          originalDate: null,
-          originalStartTime: null,
-          whoCancelled: null,
-          cancelledAt: null,
+          isPaid: false,
         });
       }
     }
@@ -142,19 +160,19 @@ export const expandScheduleToItems = (
   return items;
 };
 
-/**
- * Merge: materialne Lesson nadpisują wirtualne po kluczu
- * studentId|date|startTime oraz obsługują "moved" (widmo na original_*).
- */
+// * Łączy wirtualne lekcje z realnymi z DB.
+// * Realna lekcja nadpisuje wirtualną na tym samym kluczu naturalnym.
+// * Lekcja "moved" generuje ghosta na oryginalnym terminie.
+// * Cancelled/moved pokrywające się z planned są ukrywane.
 export const mergeLessonsIntoCalendar = (
   virtual: CalendarLessonItem[],
-  lessons: Lesson[],
+  lessons: readonly Lesson[],
   studentNameById: Map<string, { firstName: string; lastName: string }>,
 ): CalendarLessonItem[] => {
-  const byNatural = new Map<string, CalendarLessonItem>();
+  const itemMap = new Map<string, CalendarLessonItem>();
 
   for (const v of virtual) {
-    byNatural.set(naturalLessonKey(v.studentId, v.date, v.startTime), { ...v });
+    itemMap.set(naturalLessonKey(v.studentId, v.date, v.startTime), { ...v });
   }
 
   for (const lesson of lessons) {
@@ -163,9 +181,11 @@ export const mergeLessonsIntoCalendar = (
       lastName: "",
     };
 
-    // * Tworzymy pełnoprawny, AKTYWNY klocek w nowym (docelowym) terminie.
-    // Traktujemy go jako "planned" na siatce
-    const activeItem: CalendarLessonItem = {
+    // * "moved" na nowym terminie wyświetlamy jako "planned"
+    const displayStatus: CalendarLessonItem["status"] =
+      lesson.status === "moved" ? "planned" : lesson.status;
+
+    const realItem: CalendarLessonItem = {
       id: lesson.id,
       studentId: lesson.studentId,
       studentFirstName: names.firstName,
@@ -173,7 +193,7 @@ export const mergeLessonsIntoCalendar = (
       date: lesson.date,
       startTime: lesson.startTime,
       durationMins: lesson.durationMins,
-      status: lesson.status === "moved" ? "planned" : lesson.status,
+      status: displayStatus,
       topic: lesson.topic,
       tutorNotes: lesson.tutorNotes,
       boardId: lesson.boardId,
@@ -181,80 +201,64 @@ export const mergeLessonsIntoCalendar = (
       originalStartTime: lesson.originalStartTime ?? null,
       whoCancelled: lesson.whoCancelled ?? null,
       cancelledAt: lesson.cancelledAt ?? null,
+      isPaid: lesson.isPaid,
     };
 
-    byNatural.set(
+    itemMap.set(
       naturalLessonKey(lesson.studentId, lesson.date, lesson.startTime),
-      activeItem,
+      realItem,
     );
 
-    // * Jeśli to przesunięcie, tworzymy "widmo" w STARYM terminie.
+    // * Ghost na oryginalnym terminie przeniesionej lekcji
     if (
       lesson.status === "moved" &&
       lesson.originalDate &&
       lesson.originalStartTime
     ) {
-      const ghostKey = naturalLessonKey(
-        lesson.studentId,
-        lesson.originalDate,
-        lesson.originalStartTime,
+      itemMap.set(
+        naturalLessonKey(
+          lesson.studentId,
+          lesson.originalDate,
+          lesson.originalStartTime,
+        ),
+        {
+          ...realItem,
+          id: `${lesson.id}-ghost`,
+          date: lesson.originalDate,
+          startTime: lesson.originalStartTime,
+          status: "moved",
+          originalDate: lesson.date,
+          originalStartTime: lesson.startTime,
+          topic: null,
+          tutorNotes: null,
+          boardId: null,
+          whoCancelled: null,
+          cancelledAt: null,
+        },
       );
-      byNatural.set(ghostKey, {
-        ...activeItem,
-        id: `${lesson.id}-ghost`,
-        date: lesson.originalDate,
-        startTime: lesson.originalStartTime,
-        status: "moved",
-        originalDate: lesson.date,
-        originalStartTime: lesson.startTime,
-      });
     }
   }
 
-  return Array.from(byNatural.values()).sort((a, b) => {
-    const c = a.date.localeCompare(b.date);
-    if (c !== 0) return c;
-    return a.startTime.localeCompare(b.startTime);
+  const allItems = Array.from(itemMap.values());
+
+  // * Ukryj cancelled/moved nachodzące na istniejącą planned lekcję
+  const finalItems = allItems.filter((item) => {
+    if (item.status === "planned") return true;
+
+    const itemStart = timeToMinutes(item.startTime);
+    const itemEnd = itemStart + item.durationMins;
+
+    return !allItems.some((other) => {
+      if (other.status !== "planned" || other.date !== item.date) return false;
+      const otherStart = timeToMinutes(other.startTime);
+      return (
+        itemStart < otherStart + other.durationMins && otherStart < itemEnd
+      );
+    });
   });
-};
 
-export const mapLessonFromApi = (api: import("./types").ApiLesson): Lesson => ({
-  id: api.id,
-  studentId: api.student_id,
-  date: api.date,
-  startTime: api.start_time,
-  durationMins: api.duration_mins,
-  status: api.status,
-  topic: api.topic,
-  tutorNotes: api.tutor_notes,
-  boardId: api.board_id,
-  originalDate: api.original_date,
-  originalStartTime: api.original_start_time,
-  whoCancelled: api.who_cancelled,
-  cancelledAt: api.cancelled_at ? new Date(api.cancelled_at) : null,
-  createdAt: new Date(api.created_at),
-});
-
-// ==========================================
-// UTILS UI: Pozycjonowanie na siatce kalendarza
-// ==========================================
-
-/** Zmienia "HH:MM" na minuty od północy (np. "08:30" -> 510) */
-export const timeToMinutes = (time: string): number => {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-};
-
-/**
- * Konwertuje minuty na ładny ciąg znaków, np. 16:30 + 90 min -> 18:00
- */
-export const addMinutesToTime = (
-  startTime: string,
-  durationMins: number,
-): string => {
-  const startMins = timeToMinutes(startTime);
-  const endMins = startMins + durationMins;
-  const h = Math.floor(endMins / 60) % 24;
-  const m = endMins % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return finalItems.sort((a, b) => {
+    const cmp = a.date.localeCompare(b.date);
+    return cmp !== 0 ? cmp : a.startTime.localeCompare(b.startTime);
+  });
 };

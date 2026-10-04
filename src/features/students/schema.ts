@@ -4,7 +4,7 @@
 
 import { z } from "zod";
 
-// * Telefon: dokładnie 9 cyfr (bez spacji — te są tylko w UI)
+// * Telefon: dokładnie 9 cyfr (bez spacji - te są tylko w UI)
 const PHONE_REGEX = /^\d{9}$/;
 // * Regex format "HH:MM" (24h)
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
