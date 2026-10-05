@@ -1,4 +1,6 @@
-// Lista aktywnych i zarchiwizowanych uczniów z wyszukiwaniem.
+// ==========================================
+// WIDOK: Lista aktywnych i zarchiwizowanych uczniów z wyszukiwaniem.
+// ==========================================
 
 "use client";
 

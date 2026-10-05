@@ -59,7 +59,7 @@ interface StudentCalendarTabProps {
   readonly studentId: string;
 }
 
-// * Nagłówki dni tygodnia (pełne i skrócone)
+// * Nagłówki dni tygodnia (skrócone)
 const WEEKDAY_LABELS_SHORT = [
   "Pn",
   "Wt",
@@ -150,7 +150,7 @@ export function StudentCalendarTab({ studentId }: StudentCalendarTabProps) {
     setSelectedDate(today);
   }, []);
 
-  // * Wybór dnia (mobile — zmienia listę pod spodem)
+  // * Wybór dnia (mobile - zmienia listę pod spodem)
   const handleSelectDate = useCallback((day: Date) => {
     setSelectedDate(day);
   }, []);
@@ -193,7 +193,7 @@ export function StudentCalendarTab({ studentId }: StudentCalendarTabProps) {
     setIsDetailsOpen(true);
   }, []);
 
-  // * Mutacje — delegacja do hooka
+  // * Mutacje - delegacja do hooka
   const handleCreateSubmit = async (data: LessonCreateData): Promise<boolean> =>
     createLesson(data);
 
@@ -245,7 +245,7 @@ export function StudentCalendarTab({ studentId }: StudentCalendarTabProps) {
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* * Pasek nawigacji — identyczny layout jak w CalendarView (bez filtra ucznia) */}
+      {/* * Pasek nawigacji - identyczny layout jak w CalendarView (bez filtra ucznia) */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
@@ -255,7 +255,7 @@ export function StudentCalendarTab({ studentId }: StudentCalendarTabProps) {
             <h2 className="text-2xl font-bold tracking-tight text-foreground capitalize">
               {monthLabel}
             </h2>
-            {/* * Na mobile — wybrany dzień */}
+            {/* * Na mobile - wybrany dzień */}
             <p className="text-sm text-muted-foreground block xl:hidden capitalize">
               {format(selectedDate, "EEEE, d MMM", { locale: pl })}
             </p>
@@ -373,7 +373,7 @@ export function StudentCalendarTab({ studentId }: StudentCalendarTabProps) {
 
       {/* ===== MOBILE: Kompaktowy miesiąc + lista dnia ===== */}
       <div className="md:hidden space-y-4">
-        {/* * Kompaktowa siatka miesięczna (jak w natywnym kalendarzu) */}
+        {/* * Kompaktowa siatka miesięczna */}
         <div className="relative rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden">
           {isLoading && (
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/50 backdrop-blur-sm">
@@ -433,7 +433,7 @@ export function StudentCalendarTab({ studentId }: StudentCalendarTabProps) {
                     {format(day, "d")}
                   </span>
 
-                  {/* * Kropki pod numerem dnia — widać że są zajęcia */}
+                  {/* * Kropki pod numerem dnia */}
                   {isInMonth && (hasPlanned || hasCancelled) && (
                     <div className="flex items-center gap-0.5 mt-0.5">
                       {hasPlanned && (
@@ -470,10 +470,11 @@ export function StudentCalendarTab({ studentId }: StudentCalendarTabProps) {
             <h3 className="text-sm font-bold text-foreground capitalize">
               {format(selectedDate, "EEEE, d MMMM", { locale: pl })}
             </h3>
+            {/* * Przycisk "Dodaj" w wersji Primary */}
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
-              className="h-9"
+              className="h-9 shadow-sm"
               onClick={handlePlanClick}
             >
               <Plus className="mr-1.5 h-4 w-4" /> Dodaj
@@ -495,7 +496,7 @@ export function StudentCalendarTab({ studentId }: StudentCalendarTabProps) {
             >
               <CalendarIcon className="h-6 w-6 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">
-                Brak zajęć — kliknij aby zaplanować
+                Brak zajęć - kliknij aby zaplanować
               </p>
             </div>
           ) : (
@@ -650,6 +651,7 @@ function DesktopLessonBlock({
   const isCancelled = item.status === "cancelled";
   const isMoved = item.status === "moved";
   const isRecurring = item.id.startsWith("v-") || Boolean(item.originalDate);
+  const colorName = colorInfo.solid.split("-")[1];
 
   return (
     <button
@@ -663,15 +665,21 @@ function DesktopLessonBlock({
         item.topic ? ` · ${item.topic}` : ""
       }`}
       className={cn(
-        "flex items-center justify-between gap-1 px-1.5 py-1 rounded-lg text-[11px] font-semibold text-left transition-all cursor-pointer min-w-0 outline-none w-full",
+        "flex items-center justify-between gap-1 px-1.5 py-1 rounded-lg text-[11px] font-semibold text-left transition-all cursor-pointer min-w-0 outline-none w-full border border-border/40 shadow-xs",
         "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1",
-        isPlanned &&
-          cn("border-l-[3px] shadow-xs", colorInfo.glow, colorInfo.hoverBg),
+        isPlanned && "bg-background border-l-[3px] hover:bg-muted/30",
         isCancelled &&
-          "bg-destructive/10 text-destructive/80 hover:bg-destructive/20 line-through",
+          "bg-destructive/5 text-destructive/80 hover:bg-destructive/10 line-through border-destructive/20",
         isMoved &&
-          "bg-muted/60 text-muted-foreground hover:bg-muted border border-dashed border-muted-foreground/30",
+          "bg-muted/30 text-muted-foreground hover:bg-muted border border-dashed border-muted-foreground/30",
       )}
+      style={
+        isPlanned
+          ? {
+              borderLeftColor: `var(--color-${colorName}-500)`,
+            }
+          : undefined
+      }
     >
       {/* * Lewa strona: godzina + ikona statusu */}
       <div className="flex items-center gap-1 min-w-0">
@@ -684,7 +692,7 @@ function DesktopLessonBlock({
         <span className="shrink-0 tabular-nums">{item.startTime}</span>
       </div>
 
-      {/* * Prawa strona: ikony płatności i cykliczności (jak w głównym kalendarzu) */}
+      {/* * Prawa strona: ikony płatności i cykliczności */}
       {isPlanned && (
         <div className="flex items-center gap-1 shrink-0">
           {isRecurring ? (
@@ -737,19 +745,27 @@ function MobileLessonCard({ item, colorInfo, onClick }: MobileLessonCardProps) {
   const isMoved = item.status === "moved";
   const isRecurring = item.id.startsWith("v-") || Boolean(item.originalDate);
 
+  const colorName = colorInfo.solid.split("-")[1];
+
   return (
     <button
       type="button"
       onClick={() => onClick(item)}
       className={cn(
         "flex items-center justify-between w-full rounded-2xl border px-4 py-3.5 transition-all cursor-pointer text-left focus-visible:ring-2 focus-visible:ring-primary outline-none",
-        isPlanned &&
-          cn("border-l-4 shadow-sm", colorInfo.glow, colorInfo.hoverBg),
+        isPlanned && cn("border-l-4 shadow-sm bg-background hover:bg-muted/10"),
         isCancelled &&
           "border-destructive/20 bg-destructive/5 hover:bg-destructive/10",
         isMoved &&
           "border-dashed border-muted-foreground/30 bg-muted/20 hover:bg-muted/40",
       )}
+      style={
+        isPlanned
+          ? {
+              borderLeftColor: `var(--color-${colorName}-500)`,
+            }
+          : undefined
+      }
     >
       {/* * Lewa strona: godziny, czas trwania, temat */}
       <div className="flex flex-col min-w-0 gap-0.5">
@@ -777,7 +793,7 @@ function MobileLessonCard({ item, colorInfo, onClick }: MobileLessonCardProps) {
           )}
         </div>
 
-        {/* * Temat (jeśli jest) */}
+        {/* * Temat */}
         {item.topic && isPlanned && (
           <span className="text-xs text-foreground/70 mt-0.5 truncate">
             {item.topic}
@@ -801,7 +817,7 @@ function MobileLessonCard({ item, colorInfo, onClick }: MobileLessonCardProps) {
         )}
       </div>
 
-      {/* * Prawa strona: status płatności (identyczny mechanizm jak w WeeklyCalendar) */}
+      {/* * Prawa strona: status płatności */}
       {isPlanned && CalendarSettings.showPaymentStatus && (
         <div className="flex flex-col items-center gap-1.5 shrink-0 ml-3">
           <div

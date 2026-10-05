@@ -5,11 +5,11 @@
 
 export type LessonStatus = "planned" | "cancelled" | "moved";
 export type Recurrence = "none" | "weekly" | "biweekly";
-// ! JS Date.getDay() zwraca 0 dla niedzieli — konwertuj przez jsDayToDayOfWeek()
+// ! JS Date.getDay() zwraca 0 dla niedzieli - konwertuj przez jsDayToDayOfWeek()
 export type DayOfWeek = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type CancelledBy = "tutor" | "student";
 
-// * DTO z backendu — snake_case, 1:1 z kontraktem FastAPI
+// * DTO z backendu - snake_case, 1:1 z kontraktem FastAPI
 export interface ApiScheduleSlot {
   id?: string;
   day_of_week?: number;
@@ -39,10 +39,7 @@ export interface ApiLesson {
   created_at: string;
 }
 
-// * Payload do tworzenia lekcji — bez pól generowanych przez backend
-export type ApiLessonPayload = Omit<ApiLesson, "id" | "created_at">;
-
-// * Modele domenowe — camelCase, używane w logice aplikacji
+// * Modele domenowe - camelCase, używane w logice aplikacji
 export interface ScheduleSlot {
   id: string;
   dayOfWeek?: DayOfWeek;
@@ -72,7 +69,7 @@ export interface Lesson {
   createdAt: Date;
 }
 
-// * Model widoku — zdenormalizowany o imię/nazwisko ucznia dla siatki kalendarza
+// * Model widoku - zdenormalizowany o imię/nazwisko ucznia dla siatki kalendarza
 export interface CalendarLessonItem {
   id: string;
   studentId: string;
@@ -101,7 +98,7 @@ export interface CalendarStudentSource {
   createdAt: Date;
 }
 
-// * Pojedyncza kolizja terminów — zwracana z checkOverlap()
+// * Pojedyncza kolizja terminów - zwracana z checkOverlap()
 export interface OverlapConflict {
   studentFirstName: string;
   studentLastName: string;

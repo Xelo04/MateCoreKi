@@ -5,8 +5,8 @@
 // Czeka na sygnał submit({ studentId }) od rodzica, sam fetchuje
 // CalendarService, sam sprawdza kolizje, sam pokazuje toast.
 //
-// ! Nie renderuje własnego carda/ramki — to zadanie rodzica jeśli potrzebuje.
-// ! Prop showHeader steruje widocznością nagłówka z numerem i przyciskiem usunięcia.
+// * Gdy showHeader=true, formularz renderuje się jako karta z numerem i przyciskiem usuwania.
+// * Gdy showHeader=false, renderuje się jako płaski zestaw pól bez nagłówka i ramki.
 
 "use client";
 
@@ -284,23 +284,44 @@ export const LessonForm = forwardRef<LessonFormHandle, LessonFormProps>(
       }
     };
 
-    // * Wrapper — card z ramką gdy showHeader, typowany div gdy samodzielny.
-    // ! Nie używamy stringa "div" jako drugiej gałęzi, bo props onRemove
-    // ! zostałby przekazany do DOM i wywołał ostrzeżenie Reacta.
-    const Wrapper = showHeader ? CardWrapper : PlainWrapper;
-
     return (
-      <Wrapper
-        index={index}
-        onRemove={onRemove}
-        className={cn(!showHeader && "space-y-4")}
+      <div
+        className={cn(
+          "space-y-4",
+          showHeader &&
+            "rounded-2xl border border-primary/40 bg-background p-4 sm:p-5 shadow-sm",
+        )}
       >
+        {/* * Nagłówek i przycisk usuwania — renderowany tylko gdy showHeader=true */}
+        {showHeader && (
+          <div className="flex items-center justify-between pb-2 border-b border-border/30">
+            <span className="flex items-center gap-2 text-sm font-bold text-foreground">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                {(index ?? 0) + 1}
+              </span>
+              Termin zajęć
+            </span>
+            {onRemove && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                onClick={onRemove}
+                aria-label="Usuń ten termin"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* * Ostrzeżenie o przeszłości */}
         {isPast && (
           <div className="flex items-start gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-yellow-900">
             <Clock className="h-4 w-4 text-yellow-700 mt-0.5 shrink-0" />
             <p className="text-xs font-medium">
-              Termin w przeszłości — możesz zapisać, jeśli to zamierzone.
+              Termin w przeszłości - możesz zapisać, jeśli to zamierzone.
             </p>
           </div>
         )}
@@ -542,60 +563,7 @@ export const LessonForm = forwardRef<LessonFormHandle, LessonFormProps>(
             </div>
           </div>
         )}
-      </Wrapper>
+      </div>
     );
   },
 );
-
-// ==========================================
-// POMOCNICZY: Card wrapper z nagłówkiem (dla wielokrotnych terminów)
-// ==========================================
-
-interface CardWrapperProps {
-  readonly children: React.ReactNode;
-  readonly index?: number;
-  readonly onRemove?: () => void;
-  readonly className?: string;
-}
-
-function CardWrapper({
-  children,
-  index,
-  onRemove,
-  className,
-}: CardWrapperProps) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border border-primary/40 bg-background p-4 sm:p-5 shadow-sm space-y-4",
-        className,
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-2 text-sm font-bold text-foreground">
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-            {(index ?? 0) + 1}
-          </span>
-          Termin zajęć
-        </span>
-        {onRemove && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={onRemove}
-            aria-label="Usuń ten termin"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function PlainWrapper({ children, className }: CardWrapperProps) {
-  return <div className={className}>{children}</div>;
-}

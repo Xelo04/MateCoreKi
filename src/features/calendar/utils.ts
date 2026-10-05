@@ -39,7 +39,7 @@ export const parseDateKey = (key: string): Date => {
 export const jsDayToDayOfWeek = (jsDay: number): DayOfWeek =>
   (jsDay === 0 ? 7 : jsDay) as DayOfWeek;
 
-// * Klucz naturalny lekcji — studentId + date + startTime
+// * Klucz naturalny lekcji - studentId + date + startTime
 export const naturalLessonKey = (
   studentId: string,
   date: string,
@@ -104,7 +104,7 @@ export const matchesRecurrence = (slot: ScheduleSlot, day: Date): boolean => {
   if (!isSlotActiveOnDate(slot, day)) return false;
   if (slot.recurrence === "weekly") return true;
 
-  // * biweekly — parzyste tygodnie od startu slotu
+  // * biweekly - parzyste tygodnie od startu slotu
   const start = getSlotEffectiveStart(slot);
   const diffDays = Math.floor(
     (day.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),

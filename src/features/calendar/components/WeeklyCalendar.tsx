@@ -29,7 +29,6 @@ const START_HOUR = 0;
 const END_HOUR = 23;
 const SLOT_INTERVAL_MINUTES = 30;
 const MAX_SLOT_MINUTES = END_HOUR * 60 + SLOT_INTERVAL_MINUTES;
-// * 1.4 px/min -> 84 px/h — wystarczająca gęstość do czytelnych bloków
 const MINUTE_HEIGHT = 1.4;
 const HOUR_HEIGHT = 60 * MINUTE_HEIGHT;
 
@@ -44,7 +43,7 @@ export function WeeklyCalendar({
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const isFirstRender = React.useRef(true);
 
-  // * Stała tablica godzin — nie zmienia się między renderami
+  // * Stała tablica godzin - nie zmienia się między renderami
   const hours = React.useMemo(
     () =>
       Array.from(
@@ -70,7 +69,7 @@ export function WeeklyCalendar({
     isFirstRender.current = false;
   }, [isLoading, items]);
 
-  // * Pojedynczy blok lekcji na siatce — pozycjonowany absolutnie
+  // * Pojedynczy blok lekcji na siatce - pozycjonowany absolutnie
   const renderLessonBlock = (item: CalendarLessonItem) => {
     const startMins = timeToMinutes(item.startTime);
     const top = (startMins - START_HOUR * 60) * MINUTE_HEIGHT;
@@ -189,7 +188,7 @@ export function WeeklyCalendar({
 
   return (
     <div className="flex flex-col h-[calc(100vh-170px)] min-h-125 rounded-2xl border border-border/60 bg-card shadow-sm overflow-hidden relative">
-      {/* * Overlay ładowania — pełnoekranowy blur na siatce */}
+      {/* * Overlay ładowania - pełnoekranowy blur na siatce */}
       {isLoading && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-sm">
           <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary border-r-transparent shadow-lg" />
@@ -277,12 +276,14 @@ export function WeeklyCalendar({
                     "relative border-r border-border/30 last:border-r-0 cursor-pointer group hover:bg-muted/10 transition-colors",
                     !isSameDay(day, selectedDate) ? "hidden xl:block" : "block",
                   )}
-                  // * Kliknięcie w pusty slot — otwiera modal planowania
+                  // * Kliknięcie w pusty slot - otwiera modal planowania
                   onClick={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     const y = e.clientY - rect.top;
                     const totalMins = START_HOUR * 60 + y / MINUTE_HEIGHT;
-                    const snappedMins = Math.floor(totalMins / SLOT_INTERVAL_MINUTES) * SLOT_INTERVAL_MINUTES;
+                    const snappedMins =
+                      Math.floor(totalMins / SLOT_INTERVAL_MINUTES) *
+                      SLOT_INTERVAL_MINUTES;
                     const clampedMins = Math.min(
                       Math.max(snappedMins, 0),
                       MAX_SLOT_MINUTES,

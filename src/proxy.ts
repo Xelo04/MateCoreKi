@@ -1,41 +1,50 @@
-// Ochrona tras na podstawie obecności tokena uwierzytelniającego.
+// ==========================================
+// INFRASTRUKTURA: Proxy / Middleware Uwierzytelniania
+// ==========================================
+// Odpowiada za przekierowania między trasami publicznymi a chronionymi.
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Klucz musi być zgodny z kluczem używanym w tokenStorage.
+// * Klucz ciasteczka — musi być spójny z implementacją w klasie TokenStorage
 const TOKEN_KEY = "matcoreki:auth:token";
+
+// ----- Definicje zakresów tras -----
+
+// * Trasy uwierzytelniania — dostępne wyłącznie dla niezalogowanych użytkowników
+const PUBLIC_AUTH_ROUTES = ["/login", "/register", "/forgot-password"];
+
+// * Wszystkie chronione trasy aplikacji — wymagają poprawnego tokena JWT
+const PROTECTED_ROUTES = ["/dashboard", "/board", "/calendar", "/students"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Odczyt tokena z ciasteczek dostępnych po stronie serwera.
+  // * Odczyt ciasteczka sesyjnego po stronie serwera
   const token = request.cookies.get(TOKEN_KEY)?.value;
 
-  // Trasy publiczne dostępne dla niezalogowanych użytkowników.
-  const isPublicAuthRoute =
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
-    pathname.startsWith("/forgot-password");
+  // * Sprawdzenie przynależności aktualnej ścieżki
+  const isPublicAuthRoute = PUBLIC_AUTH_ROUTES.some((route) =>
+    pathname.startsWith(route),
+  );
+  const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
+    pathname.startsWith(route),
+  );
 
-  // Trasy chronione dostępne dla zalogowanych użytkowników.
-  const isProtectedRoute =
-    pathname.startsWith("/dashboard") || pathname.startsWith("/board");
-
-  // Przekierowanie zalogowanego użytkownika z formularzy uwierzytelniania.
+  // ----- Logika przekierowań (Serwer-Side) -----
+  // ! Zalogowany użytkownik wchodzi na stronę logowania/rejestracji
   if (token && isPublicAuthRoute) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Przekierowanie niezalogowanego użytkownika do logowania.
+  // ! Niezalogowany użytkownik próbuje wejść na chronioną trasę
   if (!token && isProtectedRoute) {
     const loginUrl = new URL("/login", request.url);
-    // Zachowanie adresu docelowego do użycia po zalogowaniu.
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Przekazanie żądania bez zmian, jeśli nie wymaga przekierowania.
+  // * Zgoda na przejście dalej — brak konieczności przekierowania
   return NextResponse.next();
 }
 
@@ -49,5 +58,9 @@ export const config = {
     "/dashboard/:path*",
     "/board",
     "/board/:path*",
+    "/calendar",
+    "/calendar/:path*",
+    "/students",
+    "/students/:path*",
   ],
 };

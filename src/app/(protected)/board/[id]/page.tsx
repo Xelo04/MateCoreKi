@@ -29,7 +29,7 @@ export default async function BoardPage({ params }: BoardPageProps) {
 //   viewModeEnabled={userRole === "student"}
 //   zenModeEnabled={false}
 // />
-// Dlaczego: Kontrola ról — korepetytor edytuje, uczeń ogląda (lub odwrotnie w zależności od scenariusza).
+// Dlaczego: Kontrola ról - korepetytor edytuje, uczeń ogląda (lub odwrotnie w zależności od scenariusza).
 
 // 11. Własne statystyki (renderCustomStats)
 // W oknie "Nerd Stats" możesz pokazać np. czas trwania zajęć, liczbę elementów:

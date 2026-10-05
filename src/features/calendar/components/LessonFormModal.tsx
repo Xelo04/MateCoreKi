@@ -159,14 +159,14 @@ export function LessonFormModal({
           </div>
         )}
 
-        {/* * Formularz ucznia — pojawiający się inline po wybraniu opcji */}
+        {/* * Formularz ucznia - pojawiający się inline po wybraniu opcji */}
         {isAddingStudent && (
           <div className="animate-in slide-in-from-top-2 fade-in duration-300">
             <StudentForm ref={studentFormRef} mode="add" />
           </div>
         )}
 
-        {/* * Formularz lekcji — zawsze widoczny i dostępny */}
+        {/* * Formularz lekcji - zawsze widoczny i dostępny */}
         <LessonForm ref={lessonFormRef} defaultValues={defaultValues} />
 
         {/* * Stopka */}

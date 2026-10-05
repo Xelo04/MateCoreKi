@@ -5,7 +5,7 @@ import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-// * Unikalne ID per instancja Tabs — zapobiega skakaniu animacji między osobnymi renderami
+// * Unikalne ID per instancja Tabs - zapobiega skakaniu animacji między osobnymi renderami
 let tabsInstanceCounter = 0;
 
 const TabsContext = React.createContext<{

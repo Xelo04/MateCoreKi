@@ -80,7 +80,7 @@ export function LessonDetailsModal({
   onCancelLesson,
   onTogglePayment,
 }: LessonDetailsModalProps) {
-  // * Stan płatności lokalnie — optymistyczny update z rollbackiem
+  // * Stan płatności lokalnie - optymistyczny update z rollbackiem
   const [prevItemId, setPrevItemId] = useState<string | null>(null);
   const [overrideIsPaid, setOverrideIsPaid] = useState<boolean | null>(null);
 
@@ -270,7 +270,7 @@ export function LessonDetailsModal({
     }
   };
 
-  // ! Guard PO wszystkich hookach — inaczej ESLint rules-of-hooks
+  // ! Guard PO wszystkich hookach - inaczej ESLint rules-of-hooks
   if (!item) return null;
 
   const isRecurring = Boolean(item.id.startsWith("v-") || item.originalDate);
@@ -383,7 +383,7 @@ export function LessonDetailsModal({
           </div>
         </div>
 
-        {/* * Alert dla lekcji przeniesionej (ghost) — pokazuje nowy termin */}
+        {/* * Alert dla lekcji przeniesionej (ghost) - pokazuje nowy termin */}
         {isGhost && item.originalDate && (
           <div className="rounded-xl bg-muted/50 p-4 text-sm text-muted-foreground border border-dashed border-border/50">
             To spotkanie zostało przeniesione na: <br />
@@ -396,7 +396,7 @@ export function LessonDetailsModal({
           </div>
         )}
 
-        {/* * Alert dla lekcji odwołanej — kto odwołał */}
+        {/* * Alert dla lekcji odwołanej - kto odwołał */}
         {isCancelled && (
           <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive font-medium border border-destructive/20">
             Zajęcia zostały odwołane przez:{" "}
@@ -409,7 +409,7 @@ export function LessonDetailsModal({
           </div>
         )}
 
-        {/* * Zakładki akcji — widoczne tylko dla zaplanowanych lekcji */}
+        {/* * Zakładki akcji - widoczne tylko dla zaplanowanych lekcji */}
         {!isGhost && !isCancelled && isPlanned && (
           <Tabs defaultValue="notes" className="w-full">
             <TabsList cols={3} className="w-full">
@@ -550,9 +550,9 @@ export function LessonDetailsModal({
                   </div>
                 )}
 
-                {/* * Siatka pól formularza — różni się wg scope */}
+                {/* * Siatka pól formularza - różni się wg scope */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* * Regularność — widoczna tylko dla scope=all */}
+                  {/* * Regularność - widoczna tylko dla scope=all */}
                   {watchedMoveScope === "all" && (
                     <div className="space-y-1.5 sm:col-span-2 mb-1">
                       <Label>Regularność</Label>
@@ -777,7 +777,7 @@ export function LessonDetailsModal({
                 })}
                 className="space-y-4"
               >
-                {/* * Wybór kto odwołał — uczeń lub nauczyciel */}
+                {/* * Wybór kto odwołał - uczeń lub nauczyciel */}
                 <div className="space-y-2">
                   <Label>Kto odwołał zajęcia?</Label>
                   <Controller

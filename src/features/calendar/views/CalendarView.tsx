@@ -2,17 +2,10 @@
 // WIDOK: Globalny Kalendarz (/calendar)
 // ==========================================
 // Główny widok kalendarza. Zarządza nawigacją i filtrem uczniów.
-// Select filtru uczniów posiada opcję dodania ucznia inline bezpośrednio pod nagłówkiem.
 
 "use client";
 
-import {
-  useState,
-  useMemo,
-  useSyncExternalStore,
-  useCallback,
-  useRef,
-} from "react";
+import { useState, useMemo, useSyncExternalStore, useCallback } from "react";
 import {
   startOfWeek,
   addDays,
@@ -31,10 +24,8 @@ import {
   X,
   Repeat,
   Calendar as CalendarIcon,
-  UserRoundPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -53,10 +44,6 @@ import { useCalendarWeek } from "../hook";
 import { WeeklyCalendar } from "../components/WeeklyCalendar";
 import { LessonFormModal } from "../components/LessonFormModal";
 import { useStudentsList } from "@/features/students/hook";
-import {
-  StudentForm,
-  type StudentFormHandle,
-} from "@/features/students/components/StudentForm";
 import { getStudentColor } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
 import type {
@@ -80,11 +67,6 @@ export function CalendarView() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] =
     useState<CalendarLessonItem | null>(null);
-
-  // * Stany dla tworzenia studenta inline pod nagłówkiem
-  const [isAddingStudentInline, setIsAddingStudentInline] = useState(false);
-  const studentFormRef = useRef<StudentFormHandle>(null);
-  const [isSavingStudent, setIsSavingStudent] = useState(false);
 
   const isMobile = useSyncExternalStore(
     (callback) => {
@@ -117,7 +99,7 @@ export function CalendarView() {
     selectedStudentId === "all" ? undefined : selectedStudentId,
   );
 
-  const { activeStudents, refetch: refetchStudents } = useStudentsList();
+  const { activeStudents } = useStudentsList();
 
   const monthLabel = format(currentDate, "LLLL yyyy", { locale: pl });
 
@@ -132,34 +114,6 @@ export function CalendarView() {
 
   const handleToday = useCallback(() => {
     setCurrentDate(new Date());
-  }, []);
-
-  // * Obsługa wyboru studenta w selectie
-  const handleStudentFilterChange = useCallback((val: string) => {
-    if (val === "add-new-student-main-filter") {
-      setIsAddingStudentInline(true);
-      setSelectedStudentId("all");
-    } else {
-      setSelectedStudentId(val);
-    }
-  }, []);
-
-  // * Zapis studenta dodawanego inline
-  const handleSaveStudentInline = useCallback(async () => {
-    if (!studentFormRef.current) return;
-    setIsSavingStudent(true);
-    const result = await studentFormRef.current.submit();
-    setIsSavingStudent(false);
-
-    if (result.success && result.studentId) {
-      await refetchStudents();
-      setSelectedStudentId(result.studentId); // * Automatycznie wybierz nowo dodanego studenta
-      setIsAddingStudentInline(false);
-    }
-  }, [refetchStudents]);
-
-  const handleCancelSaveStudentInline = useCallback(() => {
-    setIsAddingStudentInline(false);
   }, []);
 
   // * Szybkie planowanie
@@ -271,10 +225,10 @@ export function CalendarView() {
             <Plus className="mr-2 h-4 w-4" /> Zaplanuj
           </Button>
 
-          {/* * Filtrowanie z opcją "Dodaj studenta" */}
+          {/* * Filtrowanie po uczniach */}
           <Select
             value={selectedStudentId}
-            onValueChange={handleStudentFilterChange}
+            onValueChange={setSelectedStudentId}
           >
             <SelectTrigger className="h-11 w-full xl:w-55 order-2 xl:order-3 bg-card">
               <SelectValue placeholder="Wszyscy uczniowie" />
@@ -286,16 +240,6 @@ export function CalendarView() {
                   {s.firstName} {s.lastName}
                 </SelectItem>
               ))}
-              <Separator className="my-1.5" />
-              <SelectItem
-                value="add-new-student-main-filter"
-                className="text-primary font-bold focus:text-primary focus:bg-primary/5 cursor-pointer"
-              >
-                <span className="flex items-center gap-1.5">
-                  <UserRoundPlus className="h-4 w-4" />
-                  Dodaj nowego ucznia
-                </span>
-              </SelectItem>
             </SelectContent>
           </Select>
 
@@ -353,47 +297,6 @@ export function CalendarView() {
         </div>
       </div>
 
-      {/* * Formularz dodawania studenta inline pod filtrami (rozwijany) */}
-      {isAddingStudentInline && (
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-4 animate-in slide-in-from-top-4 duration-300">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-primary flex items-center gap-1.5">
-              <UserRoundPlus className="h-4 w-4" />
-              Szybkie tworzenie profilu ucznia
-            </h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCancelSaveStudentInline}
-              className="text-muted-foreground hover:text-foreground h-8"
-            >
-              Anuluj
-            </Button>
-          </div>
-
-          <StudentForm ref={studentFormRef} mode="add" />
-
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-primary/10">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancelSaveStudentInline}
-              disabled={isSavingStudent}
-            >
-              Anuluj
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSaveStudentInline}
-              disabled={isSavingStudent}
-              className="h-11 min-w-28"
-            >
-              {isSavingStudent ? "Zapisywanie..." : "Utwórz profil ucznia"}
-            </Button>
-          </div>
-        </div>
-      )}
-
       <WeeklyCalendar
         days={weekDays}
         selectedDate={currentDate}
@@ -403,7 +306,7 @@ export function CalendarView() {
         onEmptySlotClick={handleEmptySlotClick}
       />
 
-      {/* LEGENDA STATUSÓW I KOLORÓW */}
+      {/* * Legenda statusów, kolorów uczniów i ikon */}
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-xs font-medium text-muted-foreground mt-2 px-2">
         {activeStudents.map((student) => {
           const colorInfo = getStudentColor(student.id);
@@ -437,7 +340,6 @@ export function CalendarView() {
 
         <div className="h-4 border-l border-border/60 mx-1 hidden md:block" />
 
-        {/* Legendy typu zajęć */}
         <div className="flex items-center gap-1.5">
           <Repeat
             className="h-3.5 w-3.5 text-muted-foreground/70"
@@ -454,7 +356,6 @@ export function CalendarView() {
           <span>Jednorazowe</span>
         </div>
 
-        {/* Legendy płatności */}
         {CalendarSettings.showPaymentStatus && (
           <>
             <div className="h-4 border-l border-border/60 mx-1 hidden md:block" />

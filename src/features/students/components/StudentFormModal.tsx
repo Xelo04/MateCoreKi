@@ -7,7 +7,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
-import { UserRoundPlus, UserRoundPen, CalendarPlus } from "lucide-react";
+import { UserRoundPlus, UserRoundPen, CalendarPlus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ModalShell } from "@/components/ui/modal-shell";
@@ -41,7 +41,7 @@ export function StudentFormModal({
   const lessonKeyCounterRef = useRef<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // * Lista formularzy lekcji — każdy z unikalnym kluczem i refem
+  // * Lista formularzy lekcji - każdy z unikalnym kluczem i refem
   const [lessonKeys, setLessonKeys] = useState<string[]>([]);
   const lessonRefs = useRef<Map<string, LessonFormHandle>>(new Map());
 
@@ -123,7 +123,7 @@ export function StudentFormModal({
       }
     }
 
-    // * Krok 3: Sukces — powiadom rodzica i zamknij
+    // * Krok 3: Sukces - powiadom rodzica i zamknij
     onStudentCreated?.(newStudentId);
     setLessonKeys([]);
     lessonRefs.current.clear();
@@ -158,46 +158,64 @@ export function StudentFormModal({
       <Separator className="bg-primary/10 my-6" />
 
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">
-              Terminy zajęć (opcjonalnie)
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Możesz dodać teraz lub później z kalendarza.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleAddLesson}
-            disabled={isSubmitting}
-            className="border-primary/30 text-primary hover:bg-primary/5 shrink-0"
-          >
-            <CalendarPlus className="mr-2 h-4 w-4" /> Dodaj termin
-          </Button>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            Terminy zajęć (opcjonalnie)
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Możesz dodać teraz lub później z kalendarza.
+          </p>
         </div>
 
         {/* * Lista formularzy lekcji */}
         {lessonKeys.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-border/50 py-8 text-center">
-            <CalendarPlus className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">
-              Brak dodanych terminów.
-            </p>
+          /* * PUSTY STAN: Wyśrodkowany przycisk dodawania pierwszego terminu zajęć */
+          <div className="rounded-2xl border-2 border-dashed border-border/50 py-10 text-center flex flex-col items-center justify-center gap-3">
+            <CalendarPlus className="h-8 w-8 text-muted-foreground/40" />
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-foreground">
+                Brak dodanych terminów
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Dodaj stały lub jednorazowy harmonogram dla tego ucznia.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddLesson}
+              disabled={isSubmitting}
+              className="mt-2 border-primary/30 text-primary hover:bg-primary/5 shrink-0 rounded-xl"
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Dodaj pierwszy termin
+            </Button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {lessonKeys.map((key, idx) => (
-              <LessonForm
-                key={key}
-                ref={registerLessonRef(key)}
-                index={idx}
-                onRemove={() => handleRemoveLesson(key)}
-                showHeader={true}
-              />
-            ))}
+          /* * Lista formularzy z przyciskiem dodawania kolejnego na dole */
+          <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-4">
+              {lessonKeys.map((key, idx) => (
+                <LessonForm
+                  key={key}
+                  ref={registerLessonRef(key)}
+                  index={idx}
+                  onRemove={() => handleRemoveLesson(key)}
+                  showHeader={true}
+                />
+              ))}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAddLesson}
+              disabled={isSubmitting}
+              className="w-full border-dashed border-primary/30 text-primary hover:bg-primary/5 h-11 rounded-xl"
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> Dodaj kolejny termin zajęć
+            </Button>
           </div>
         )}
       </section>

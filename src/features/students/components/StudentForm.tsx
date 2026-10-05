@@ -53,7 +53,7 @@ export interface StudentFormHandle {
 
 export interface StudentFormResult {
   success: boolean;
-  // * ID ucznia (nowego lub edytowanego) — potrzebne rodzicowi do kaskadowych transakcji
+  // * ID ucznia (nowego lub edytowanego) - potrzebne rodzicowi do kaskadowych transakcji
   studentId?: string;
   // * Komunikat błędu dla rodzica (toast już się pokazał)
   error?: string;
@@ -62,7 +62,7 @@ export interface StudentFormResult {
 interface StudentFormProps {
   readonly mode: "add" | "edit";
   readonly defaultValues?: Partial<StudentFormData>;
-  // * Wymagane w trybie "edit" — ID ucznia do aktualizacji
+  // * Wymagane w trybie "edit" - ID ucznia do aktualizacji
   readonly studentId?: string;
 }
 
@@ -175,7 +175,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(
       ref,
       () => ({
         submit: async (): Promise<StudentFormResult> => {
-          // * Zwracamy Promise ręcznie — handleSubmit nie wspiera tego natywnie
+          // * Zwracamy Promise ręcznie - handleSubmit nie wspiera tego natywnie
           return new Promise((resolve) => {
             void handleSubmit(
               async (data: StudentFormData) => {
@@ -214,7 +214,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(
                   resolve({ success: false, error: msg });
                 }
               },
-              // * Walidacja Zod nie przeszła — błędy już są pod polami
+              // * Walidacja Zod nie przeszła - błędy już są pod polami
               () => {
                 resolve({
                   success: false,
@@ -230,7 +230,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(
 
     return (
       <FormProvider {...methods}>
-        {/* * Formularz BEZ tagu <form> — rodzic kontroluje submit przez ref */}
+        {/* * Formularz BEZ tagu <form> - rodzic kontroluje submit przez ref */}
         <div className="space-y-6">
           {/* SEKCJA: Dane podstawowe */}
           <section className="space-y-4">

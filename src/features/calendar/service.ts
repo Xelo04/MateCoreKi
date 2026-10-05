@@ -1,7 +1,7 @@
 // ==========================================
 // SERWIS: Komunikacja z API kalendarza
 // ==========================================
-// Warstwa anti-corruption — mapuje DTO z backendu na modele domenowe.
+// Warstwa anti-corruption - mapuje DTO z backendu na modele domenowe.
 // Obecnie zawiera mocki; po integracji z FastAPI zamieniamy na api-client.ts.
 
 import { StudentService } from "@/features/students/service";
@@ -128,7 +128,7 @@ const findLessonIndex = (
       l.start_time === startTime,
   );
 
-// * Upsert lekcji w mocku — aktualizuje istniejącą lub dodaje nową
+// * Upsert lekcji w mocku - aktualizuje istniejącą lub dodaje nową
 const upsertApiLesson = (
   base: Omit<ApiLesson, "id" | "created_at">,
 ): ApiLesson => {
@@ -246,7 +246,7 @@ export const CalendarService = {
   },
 
   // TODO: [BACKEND] POST /api/v1/calendar/lessons/move
-  // TODO: [BACKEND] Obsłużyć scope "all" — zaktualizować scheduleSlots ucznia
+  // TODO: [BACKEND] Obsłużyć scope "all" - zaktualizować scheduleSlots ucznia
   async moveLesson(
     studentId: string,
     fromDate: string,
@@ -401,7 +401,7 @@ export const CalendarService = {
   },
 
   // TODO: [BACKEND] POST /api/v1/calendar/lessons
-  // TODO: [BACKEND] Cykliczne lekcje — backend obsłuży atomowo
+  // TODO: [BACKEND] Cykliczne lekcje - backend obsłuży atomowo
   async createLesson(data: LessonCreateData): Promise<void> {
     await delay(400);
 
@@ -422,7 +422,7 @@ export const CalendarService = {
         is_paid: false,
       });
     } else {
-      // * Cykliczne — dodajemy slot do harmonogramu ucznia
+      // * Cykliczne - dodajemy slot do harmonogramu ucznia
       const student = await StudentService.getStudentDetails(data.studentId);
 
       const studentForm: StudentFormData = {

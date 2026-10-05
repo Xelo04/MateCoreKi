@@ -32,9 +32,6 @@
   /* (suwaków, kursorów systemowych) w trybie jasnym (czarnym).   */
   /* ============================================================= */
   color-scheme: light;
-  /* ========================================== */
-  /* STAŁY, JASNY MOTYW: Zinc + Professional Blue */
-  /* ========================================== */
   --background: #ffffff;
   --foreground: #09090b; /* Zinc 950 */
 

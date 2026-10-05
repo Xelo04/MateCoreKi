@@ -1,7 +1,7 @@
 // ==========================================
 // Pobieranie i mutacje kalendarza tygodniowego.
 // ==========================================
-// useCalendarWeek — pobiera lekcje na zakres dat i udostępnia akcje CRUD
+// useCalendarWeek - pobiera lekcje na zakres dat i udostępnia akcje CRUD
 // Obsługa powiadomień toast i odświeżania po każdej mutacji.
 
 "use client";
@@ -20,10 +20,10 @@ import type {
 export function useCalendarWeek(from: string, to: string, studentId?: string) {
   const [items, setItems] = useState<CalendarLessonItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  // * Inkrementowany przy ręcznym refetch — wymusza ponowny useEffect
+  // * Inkrementowany przy ręcznym refetch - wymusza ponowny useEffect
   const [fetchKey, setFetchKey] = useState(0);
 
-  // * Główne pobieranie danych — przerywa poprzedni request przez AbortController
+  // * Główne pobieranie danych - przerywa poprzedni request przez AbortController
   useEffect(() => {
     const controller = new AbortController();
 
