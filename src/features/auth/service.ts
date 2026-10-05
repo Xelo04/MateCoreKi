@@ -1,7 +1,7 @@
 // ==========================================
 // MODUŁ AUTORYZACJI: Serwis komunikacji z API
 // ==========================================
-// Plik odpowiada za komunikację HTTP z backendem Python FastAPI.
+// Komunikacja HTTP z backendem FastAPI.
 
 import { apiClient } from "@/lib/api/api-client";
 import { ApiError } from "@/lib/api/api-errors";
@@ -60,7 +60,7 @@ export const authService = {
     });
   },
 
-  // * Sprawdza, czy użytkownik jest zalogowany (pobiera dane profilu)
+  // Weryfikacja sesji przez pobranie danych profilu.
   async getSession(): Promise<AuthSession | null> {
     const token = tokenStorage.get();
     if (!token) return null;

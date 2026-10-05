@@ -87,7 +87,7 @@ const sanitizeAndRebalanceElements = (
     return a.id.localeCompare(b.id);
   });
 
-  // 2. Sprawdzamy czy wymagany jest rebalans (duplikaty, dwukropki, brak kolejności)
+  // 2. Weryfikacja potrzeby rebalansu (duplikaty, dwukropki, brak kolejności).
   let needsRebalance = false;
   const seen = new Set<string>();
   let lastIdx = "";

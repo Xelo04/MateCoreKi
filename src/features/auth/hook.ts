@@ -1,7 +1,7 @@
 // ==========================================
 // MODUŁ AUTORYZACJI: Hook stanu i akcji logowania
 // ==========================================
-// Plik łączy interfejs użytkownika z serwisem autoryzacji oraz store'em Zustand.
+// Integracja interfejsu użytkownika z serwisem autoryzacji i magazynem Zustand.
 
 "use client";
 
@@ -44,7 +44,7 @@ export function useAuth() {
     [searchParams],
   );
 
-  // * Sprawdza sesję użytkownika przy pierwszym załadowaniu aplikacji
+  // Weryfikacja sesji przy pierwszym załadowaniu aplikacji.
   useEffect(() => {
     if (isHydrated) return;
     let isCancelled = false;

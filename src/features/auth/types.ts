@@ -1,7 +1,7 @@
 // ==========================================
 // MODUŁ AUTORYZACJI: Definicje typów danych
 // ==========================================
-// Plik zawiera czytelne interfejsy TypeScript używane w procesie logowania i rejestracji.
+// Interfejsy TypeScript używane podczas logowania i rejestracji.
 
 export interface User {
   id: number;

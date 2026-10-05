@@ -1,8 +1,4 @@
-// ==========================================
-// STORE: Globalny stan sesji użytkownika
-// ==========================================
-// Plik zarządza stanem zalogowanego użytkownika w pamięci podręcznej klienta
-// przy użyciu biblioteki Zustand, eliminując potrzebę ciągłego odpytywania backendu.
+// Globalny stan sesji użytkownika przechowywany za pomocą Zustand.
 
 import { create } from "zustand";
 import type { AuthSession } from "@/features/auth/types";
@@ -18,7 +14,7 @@ type SessionStoreActions = Readonly<{
   markHydrated: (session: AuthSession | null) => void;
 }>;
 
-// * Tworzy store Zustand do zarządzania sesją użytkownika
+// Utworzenie magazynu sesji użytkownika.
 export const useSessionStore = create<SessionStoreState & SessionStoreActions>(
   (set) => ({
     session: null,

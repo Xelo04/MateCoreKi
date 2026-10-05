@@ -51,7 +51,7 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
-      {/* 1. LOGO BRANDING */}
+      {/* Logo marki. */}
       <div className="flex h-16 shrink-0 items-center px-6 border-b border-border">
         <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-primary">
           <div className="h-6 w-6 rounded-md bg-primary flex items-center justify-center">
@@ -61,7 +61,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* 2. GŁÓWNE MENU */}
+      {/* Menu główne. */}
       <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 px-2">
           Narzędzia nauczyciela
@@ -94,7 +94,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* 3. PROFIL I USTAWIENIA */}
+      {/* Profil i ustawienia. */}
       <div className="border-t border-border p-4 space-y-1">
         <Link
           href="/settings"
@@ -109,7 +109,7 @@ export function Sidebar() {
           Ustawienia
         </Link>
 
-        {/* Mock profilu nauczyciela */}
+        {/* Tymczasowe dane profilu nauczyciela. */}
         <div className="mt-4 flex items-center gap-3 px-3 py-2">
           <div className="h-9 w-9 shrink-0 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-foreground">
             AK

@@ -40,7 +40,7 @@ export function StudentProfile({ id }: StudentProfileProps) {
   if (isLoading) {
     return (
       <div className="mx-auto max-w-6xl pb-4 pt-4">
-        {/* Przycisk powrotu */}
+        {/* Przycisk powrotu. */}
         <Button
           variant="ghost"
           disabled
@@ -71,7 +71,7 @@ export function StudentProfile({ id }: StudentProfileProps) {
 
   return (
     <div className="mx-auto max-w-6xl pb-4 pt-4">
-      {/* Nawigacja */}
+      {/* Nawigacja. */}
       <Button
         variant="ghost"
         className="-ml-4 mb-4 w-fit text-muted-foreground hover:text-foreground"
@@ -80,7 +80,7 @@ export function StudentProfile({ id }: StudentProfileProps) {
         <ArrowLeft className="mr-2 h-4 w-4" /> Wróć do uczniów
       </Button>
 
-      {/* Nagłówek z imieniem i nazwiskiem ucznia */}
+      {/* Nagłówek z imieniem i nazwiskiem ucznia. */}
       <div className="flex flex-col mb-6 md:flex-row md:items-center justify-between gap-6 rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
         <div className="flex items-center gap-5">
           <div
@@ -112,7 +112,7 @@ export function StudentProfile({ id }: StudentProfileProps) {
         </div>
       </div>
 
-      {/* ZAKŁADKI */}
+      {/* Zakładki. */}
       <Tabs defaultValue="info" className="w-full">
         <TabsList cols={4} className="mb-6">
           <TabsTrigger value="info">Informacje</TabsTrigger>

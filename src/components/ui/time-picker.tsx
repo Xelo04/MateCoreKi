@@ -71,7 +71,7 @@ export function TimePicker({
         className,
       )}
     >
-      {/* GODZINA */}
+      {/* Godzina. */}
       <Select
         value={h || undefined}
         onValueChange={handleHourChange}
@@ -97,7 +97,7 @@ export function TimePicker({
         :
       </span>
 
-      {/* MINUTA */}
+      {/* Minuta. */}
       <Select
         value={normalizedM || undefined}
         onValueChange={handleMinuteChange}

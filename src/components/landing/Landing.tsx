@@ -1,7 +1,4 @@
-// ==========================================
-// WIDOK: Strona główna (Landing Page)
-// ==========================================
-// Publiczny ekran powitalny zachęcający do zalogowania lub rejestracji.
+// Publiczny ekran powitalny z nawigacją do logowania i rejestracji.
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";

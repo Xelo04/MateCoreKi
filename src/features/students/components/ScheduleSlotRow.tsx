@@ -100,7 +100,7 @@ export function ScheduleSlotRow({ index, onRemove }: ScheduleSlotRowProps) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* 1. REGULARNOŚĆ */}
+        {/* 1. Regularność. */}
         <div className="space-y-1.5">
           <Label>Regularność *</Label>
           <Controller
@@ -126,7 +126,7 @@ export function ScheduleSlotRow({ index, onRemove }: ScheduleSlotRowProps) {
           />
         </div>
 
-        {/* 2. DZIEŃ TYGODNIA (Dla regularnych) LUB DATA (Dla jednorazowych) */}
+        {/* 2. Dzień tygodnia dla zajęć regularnych lub data dla jednorazowych. */}
         {!isSingle ? (
           <div className="space-y-1.5">
             <Label>Dzień tygodnia *</Label>
@@ -180,7 +180,7 @@ export function ScheduleSlotRow({ index, onRemove }: ScheduleSlotRowProps) {
           </div>
         )}
 
-        {/* 3. GODZINA */}
+        {/* 3. Godzina. */}
         <div className="space-y-1.5">
           <Label>Godzina rozpoczęcia *</Label>
           <Controller
@@ -197,7 +197,7 @@ export function ScheduleSlotRow({ index, onRemove }: ScheduleSlotRowProps) {
           )}
         </div>
 
-        {/* 4. CZAS TRWANIA */}
+        {/* 4. Czas trwania. */}
         <div className="space-y-1.5">
           <Label>Czas trwania (min) *</Label>
           <Input
@@ -215,7 +215,7 @@ export function ScheduleSlotRow({ index, onRemove }: ScheduleSlotRowProps) {
           )}
         </div>
 
-        {/* 5. DATA STARTU CYKLU (Pokazuje się tylko dla regularnych) */}
+        {/* 5. Data rozpoczęcia cyklu dla zajęć regularnych. */}
         {!isSingle && (
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Data startu cyklu (opcjonalnie)</Label>

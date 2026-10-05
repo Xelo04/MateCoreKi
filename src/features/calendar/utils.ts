@@ -28,7 +28,7 @@ const pad = (n: number): string => String(n).padStart(2, "0");
 export const toDateKey = (d: Date): string =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-// * "YYYY-MM-DD" -> Date. Ustawiamy T12:00:00 żeby uniknąć przesunięcia DST.
+// Konwersja "YYYY-MM-DD" do Date z godziną T12:00:00 w celu uniknięcia przesunięcia DST.
 // ! Nigdy nie używaj new Date("YYYY-MM-DD") bezpośrednio!
 export const parseDateKey = (key: string): Date => {
   const [y, m, d] = key.split("-").map(Number);

@@ -82,7 +82,7 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col space-y-12 pb-16">
-      {/* NAGŁÓWEK */}
+      {/* Nagłówek. */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -358,7 +358,7 @@ export function Dashboard() {
             </div>
           </Card>
 
-          {/* AKORDEON (PRZYKŁAD UŻYCIA ARCHIWUM) */}
+          {/* Akordeon z przykładem użycia archiwum. */}
           <div>
             <h3 className="text-lg font-semibold mb-4">
               Akordeon (np. dla sekcji archiwum)

@@ -1,14 +1,9 @@
-// ==========================================
-// AUTH: Zarządzanie tokenem (LocalStorage + Cookie)
-// ==========================================
-// Moduł odpowiedzialny za bezpieczny zapis, odczyt i usuwanie tokena JWT.
-// Zapisuje token jednocześnie w localStorage (dla klienta) oraz w ciasteczku
-// (dzięki czemu Middleware na serwerze wie, czy użytkownik jest zalogowany).
+// Przechowywanie tokena JWT w localStorage i ciasteczku.
 
 const TOKEN_KEY = "matcoreki:auth:token";
 
 export const tokenStorage = {
-  // * Pobiera token z localStorage (zabezpieczone przed środowiskiem SSR)
+  // Odczyt tokena z localStorage z pominięciem środowiska SSR.
   get(): string | null {
     if (typeof window === "undefined") return null;
     try {
@@ -18,30 +13,25 @@ export const tokenStorage = {
     }
   },
 
-  // * Zapisuje token w localStorage oraz ustawia ciasteczko przeglądarki dla Middleware
+  // Zapis tokena w localStorage i ciasteczku przeglądarki.
   set(token: string): void {
     if (typeof window === "undefined") return;
     try {
       window.localStorage.setItem(TOKEN_KEY, token);
 
-      // Ustawiamy ciasteczko dostępne dla całej domeny (path=/), ważne przez 7 dni,
-      // z polityką samesite=lax dla podstawowego bezpieczeństwa CSRF.
+      // Ciasteczko jest dostępne dla całej domeny przez 7 dni.
       document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`;
-    } catch {
-      // ! Ignoruje błędy np. w trybie prywatnym przeglądarki
-    }
+    } catch {}
   },
 
-  // * Czyszczenie tokena z localStorage oraz kasowanie ciasteczka (wylogowanie)
+  // Usunięcie tokena z localStorage i ciasteczka.
   clear(): void {
     if (typeof window === "undefined") return;
     try {
       window.localStorage.removeItem(TOKEN_KEY);
 
-      // Natychmiastowe wygaszenie ciasteczka przez ustawienie max-age na 0
+      // Natychmiastowe wygaszenie ciasteczka.
       document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
-    } catch {
-      // ! Ignoruje błędy usuwania
-    }
+    } catch {}
   },
 };

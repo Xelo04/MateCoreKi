@@ -1,5 +1,5 @@
 // ==========================================
-// TYPY: Moduł Kalendarza
+// Typy modułu kalendarza.
 // ==========================================
 // Kontrakty danych: DTO z backendu (Api*), modele domenowe i modele widoku.
 

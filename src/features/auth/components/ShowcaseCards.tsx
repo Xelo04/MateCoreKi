@@ -8,7 +8,7 @@ import { Calendar, Clock, TrendingUp } from "lucide-react";
 export function ShowcaseCards() {
   return (
     <div className="relative h-105 w-full max-w-lg">
-      {/* Karta: Najbliższe zajęcia */}
+      {/* Karta najbliższych zajęć. */}
       <div className="absolute left-0 top-0 w-64 -rotate-2">
         <ShowcaseCard>
           <div className="mb-3 flex items-center gap-2 text-slate-500">
@@ -32,7 +32,7 @@ export function ShowcaseCards() {
         </ShowcaseCard>
       </div>
 
-      {/* Karta: Postęp ucznia */}
+      {/* Karta postępu ucznia. */}
       <div className="absolute right-0 top-14 w-56 rotate-3">
         <ShowcaseCard>
           <div className="mb-3 flex items-center gap-2 text-slate-500">

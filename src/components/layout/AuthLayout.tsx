@@ -13,7 +13,7 @@ interface AuthLayoutProps {
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
-      {/* Lewa strona - brand */}
+      {/* Lewa część z identyfikacją marki. */}
       <aside className="relative hidden overflow-hidden lg:block">
         <Image
           src="/images/auth/login-hero.webp"
@@ -58,7 +58,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         </div>
       </aside>
 
-      {/* Prawa strona - formularz */}
+      {/* Prawa część z formularzem. */}
       <main className="flex items-center justify-center bg-background px-6 py-12">
         <div className="w-full max-w-sm">{children}</div>
       </main>

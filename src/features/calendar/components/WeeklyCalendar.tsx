@@ -83,7 +83,7 @@ export function WeeklyCalendar({
     const isPlanned = item.status === "planned";
     const isRecurring = item.id.startsWith("v-") || Boolean(item.originalDate);
 
-    // * Wyciągamy nazwę koloru z klasy Tailwind (np. bg-blue-500 -> blue)
+    // Odczyt nazwy koloru z klasy Tailwind (np. bg-blue-500 -> blue).
     const colorName = colorInfo.solid.split("-")[1];
 
     return (

@@ -23,12 +23,12 @@ export function ArchivedStudentCard({
   return (
     <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-sm transition-all opacity-80 hover:opacity-100">
       <div className="flex items-center gap-3">
-        {/* * Szary, nieaktywny avatar w kształcie kwadratu */}
+        {/* Szary, nieaktywny awatar w kształcie kwadratu. */}
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary text-sm font-bold text-muted-foreground">
           {getInitials(student.firstName, student.lastName)}
         </div>
 
-        {/* * Dane w kolorystyce muted */}
+        {/* Dane w przygaszonej kolorystyce. */}
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-sm font-bold text-foreground/80">
             {student.firstName} {student.lastName}
@@ -43,7 +43,7 @@ export function ArchivedStudentCard({
         </div>
       </div>
 
-      {/* * Przycisk aktywacji (Przywrócenia ucznia na pełną listę) */}
+      {/* Przycisk aktywacji przywracający ucznia na główną listę. */}
       <div className="mt-5" onClick={(e) => e.stopPropagation()}>
         <Button
           variant="outline"

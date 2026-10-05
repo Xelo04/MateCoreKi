@@ -19,7 +19,7 @@ export default async function BoardPage({ params }: BoardPageProps) {
   return <Board boardId={id} />;
 }
 
-// TODO
+// TODO: Rozszerzyć stronę o obsługę zawartości tablicy.
 // 9. Tryb widoku (View Mode) dla uczniów
 // Gdy korepetytor chce tylko pokazać coś uczniowi bez ryzyka, że uczeń coś zmieni:
 

@@ -1,8 +1,4 @@
-// ==========================================
-// APP: Główny layout aplikacji
-// ==========================================
-// Plik definiuje strukturę HTML, metadane oraz integruje globalny system
-// powiadomień (Sonner) dla całej aplikacji.
+// Główny układ aplikacji z metadanymi i globalnymi powiadomieniami.
 
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
@@ -27,7 +23,7 @@ export default function RootLayout({
     <html lang="pl" className={cn("font-sans", geist.variable)}>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
-        {/* Globalne powiadomienia pływające */}
+        {/* Globalne powiadomienia. */}
         <Toaster position="top-right" richColors closeButton />
       </body>
     </html>

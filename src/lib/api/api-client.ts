@@ -1,8 +1,4 @@
-// ==========================================
-// API: Globalny klient HTTP (Fetch Wrapper)
-// ==========================================
-// Plik odpowiada za komunikację z backendem Python FastAPI. Automatycznie dokłada
-// nagłówek autoryzacji, parsuje odpowiedzi JSON oraz obsługuje błędy sieciowe.
+// Klient HTTP obsługujący komunikację z backendem FastAPI.
 
 import { tokenStorage } from "@/lib/auth/token-storage";
 import { ApiError, defaultMessageForStatus } from "@/lib/api/api-errors";
@@ -13,7 +9,7 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
-// * Wyciąga user-friendly komunikat z payloadu błędu zwracanego przez FastAPI
+// Odczyt komunikatu z ładunku błędu zwróconego przez FastAPI.
 function extractErrorMessage(payload: unknown): string | null {
   if (typeof payload !== "object" || payload === null) return null;
   const record = payload as Record<string, unknown>;
@@ -28,7 +24,7 @@ function extractErrorMessage(payload: unknown): string | null {
   return null;
 }
 
-// * Główna funkcja wykonująca żądanie HTTP do serwera
+// Wykonanie żądania HTTP do serwera.
 async function request<TResponse>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
@@ -38,7 +34,7 @@ async function request<TResponse>(
   const url = `${baseUrl}${path}`;
   const headers = new Headers(options.headers);
 
-  // Automatyczne dołączanie tokena JWT jeśli żądanie tego wymaga
+  // Dołączenie tokena JWT, jeśli żądanie tego wymaga.
   if (options.auth) {
     const token = tokenStorage.get();
     if (token) {
@@ -46,7 +42,7 @@ async function request<TResponse>(
     }
   }
 
-  // Automatyczne dopasowanie formatu danych w ciele żądania (JSON lub x-www-form-urlencoded)
+  // Dobór formatu danych w ciele żądania.
   let body: BodyInit | undefined;
   if (options.body instanceof URLSearchParams) {
     body = options.body;
@@ -82,7 +78,7 @@ async function request<TResponse>(
   return payload as TResponse;
 }
 
-// * Publiczne API klienta HTTP podzielone na metody
+// Publiczne metody klienta HTTP.
 export const apiClient = {
   get<T>(path: string, options?: Omit<RequestOptions, "body">): Promise<T> {
     return request<T>("GET", path, options);

@@ -1,8 +1,4 @@
-// ==========================================
-// API: Domenowe błędy i komunikaty HTTP
-// ==========================================
-// Plik definiuje strukturę błędów zgłaszanych przez klient API oraz mapuje kody
-// odpowiedzi serwera na przyjazne dla użytkownika komunikaty w języku polskim.
+// Domenowe błędy API i komunikaty HTTP.
 
 export class ApiError extends Error {
   readonly status: number;
@@ -16,7 +12,7 @@ export class ApiError extends Error {
   }
 }
 
-// * Zwraca czytelny komunikat na podstawie kodu błędu HTTP
+// Odczyt komunikatu na podstawie kodu błędu HTTP.
 export function defaultMessageForStatus(status: number): string {
   if (status === 0) return "Brak połączenia z serwerem. Sprawdź internet.";
   if (status === 400) return "Nieprawidłowe dane w żądaniu.";

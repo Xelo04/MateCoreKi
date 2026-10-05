@@ -1,7 +1,4 @@
-// ==========================================
-// WIDOK: Główna Lista Uczniów
-// ==========================================
-// Odpowiada za wyświetlenie siatki uczniów aktywnych i modułu archiwum, a także wyszukiwanie
+// Lista aktywnych i zarchiwizowanych uczniów z wyszukiwaniem.
 
 "use client";
 
@@ -46,7 +43,7 @@ export function StudentsList() {
     mode: "add",
   });
 
-  // * Wyszukiwanie po imieniu lub nazwisku
+  // Filtrowanie po imieniu lub nazwisku.
   const filteredActive = useMemo(() => {
     if (!searchQuery.trim()) return activeStudents;
     const lowerQuery = searchQuery.toLowerCase();
@@ -57,11 +54,11 @@ export function StudentsList() {
     );
   }, [activeStudents, searchQuery]);
 
-  // * Otwieranie w trybie dodawania
+  // Otwarcie formularza dodawania.
   const handleOpenAdd = () =>
     setModalState({ isOpen: true, mode: "add", studentId: undefined });
 
-  // * Otwieranie w trybie edycji (pobiera szczegóły i mapuje na formularz)
+  // Otwarcie formularza edycji po pobraniu szczegółów.
   const handleOpenEdit = async (id: string) => {
     try {
       const toastId = toast.loading("Pobieranie danych...");
@@ -91,12 +88,12 @@ export function StudentsList() {
     }
   };
 
-  // * Reakcja po utworzeniu lub edycji ucznia — automatyczny refetch listy
+  // Odświeżenie listy po utworzeniu lub edycji ucznia.
   const handleStudentCreatedOrUpdated = useCallback(() => {
     void refetch();
   }, [refetch]);
 
-  // * Komponent ładowania widoczny do momentu pobrania danych
+  // Wyświetlenie stanu ładowania do czasu pobrania danych.
   if (isLoading) {
     return (
       <div className="space-y-10 pb-16">
@@ -180,7 +177,7 @@ export function StudentsList() {
         </div>
       </div>
 
-      {/* AKTYWNI UCZNIOWIE */}
+      {/* Aktywni uczniowie. */}
       {filteredActive.length > 0 ? (
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
           {filteredActive.map((student) => (
@@ -200,7 +197,7 @@ export function StudentsList() {
         </div>
       )}
 
-      {/* ARCHIWUM (Rozwijane na dole strony) */}
+      {/* Archiwum rozwijane na dole strony. */}
       {archivedStudents.length > 0 && (
         <div className="w-full pt-8">
           <Accordion type="single" collapsible className="w-full">

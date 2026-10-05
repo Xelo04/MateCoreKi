@@ -1,6 +1,4 @@
-// ==========================================
-// TYPY: Moduł Zarządzania Uczniami
-// ==========================================
+// Typy modułu zarządzania uczniami.
 
 export type EducationType =
   | "primary_school"
@@ -71,8 +69,7 @@ export interface StudentDetails extends StudentListItem {
   createdAt: Date;
 }
 
-// Wyciągamy wszystko z ApiStudentDetails OPRÓCZ id, statusu i daty utworzenia.
-// Służy zarówno do DODAWANIA (POST) jak i EDYCJI (PUT).
+// Dane formularza bez identyfikatora, statusu i daty utworzenia.
 export type ApiStudentPayload = Omit<
   ApiStudentDetails,
   "id" | "status" | "created_at"

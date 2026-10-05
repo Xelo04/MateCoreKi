@@ -137,7 +137,7 @@ export const lessonCreateSchema = lessonCreateBaseSchema
 export type LessonCreateData = z.infer<typeof lessonCreateSchema>;
 
 // * 3. Schemat dla osadzonego formularza lekcji (używany w LessonForm)
-// * Tworzymy omit na czystej bazie, a dopiero potem nakładamy walidację krzyżową
+// Utworzenie omit na bazie podstawowej przed nałożeniem walidacji krzyżowej.
 export const lessonFormSchema = lessonCreateBaseSchema
   .omit({ studentId: true })
   .refine(

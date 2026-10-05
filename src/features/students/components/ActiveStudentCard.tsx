@@ -76,7 +76,7 @@ export function ActiveStudentCard({
       />
 
       <div>
-        {/* Informacje o uczniu */}
+        {/* Informacje o uczniu. */}
         <div className="relative z-10 flex flex-col items-start pr-8">
           <h3 className="line-clamp-1 text-2xl font-bold tracking-tight text-foreground">
             {student.firstName} {student.lastName}
@@ -89,7 +89,7 @@ export function ActiveStudentCard({
             )}
           </p>
 
-          {/* LISTA TERMINÓW */}
+          {/* Lista terminów. */}
           {schedules.length > 0 && (
             <div className="mt-6 flex flex-col gap-3">
               {schedules.map((schedule, idx) => {
@@ -148,7 +148,7 @@ export function ActiveStudentCard({
         </div>
       </div>
 
-      {/* Menu z akcjami */}
+      {/* Menu akcji. */}
       <div
         className="absolute right-4 top-4 z-20"
         onClick={(e) => e.stopPropagation()}
@@ -185,7 +185,7 @@ export function ActiveStudentCard({
         </DropdownMenu>
       </div>
 
-      {/* Dodatkowe akcje (celowo pozostawiona atrapa bez podpiętego onClick) */}
+      {/* Dodatkowe akcje oczekujące na podłączenie obsługi zdarzeń. */}
       <div
         className="relative z-10 mt-3 flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}

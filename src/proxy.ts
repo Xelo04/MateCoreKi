@@ -1,52 +1,45 @@
-// ==========================================
-// MIDDLEWARE: Automatyczna ochrona tras (Edge)
-// ==========================================
-// Ten plik wykonuje się na serwerze przed załadowaniem każdej wskazanej ścieżki.
-// Sprawdza obecność ciasteczka z tokenem i steruje ruchem użytkownika:
-// 1. Zalogowany -> próba wejścia na /login lub /register -> przekierowanie na /dashboard
-// 2. Niezalogowany -> próba wejścia na /dashboard lub /board -> przekierowanie na /login
+// Ochrona tras na podstawie obecności tokena uwierzytelniającego.
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Klucz ciasteczka musi być spójny z tym definiowanym w tokenStorage
+// Klucz musi być zgodny z kluczem używanym w tokenStorage.
 const TOKEN_KEY = "matcoreki:auth:token";
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Pobieramy token z ciasteczek HTTP dostępnych dla serwera
+  // Odczyt tokena z ciasteczek dostępnych po stronie serwera.
   const token = request.cookies.get(TOKEN_KEY)?.value;
 
-  // Definicja tras publicznych (dostępnych tylko dla niezalogowanych)
+  // Trasy publiczne dostępne dla niezalogowanych użytkowników.
   const isPublicAuthRoute =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password");
 
-  // Definicja tras chronionych (dostępnych tylko dla zalogowanych)
+  // Trasy chronione dostępne dla zalogowanych użytkowników.
   const isProtectedRoute =
     pathname.startsWith("/dashboard") || pathname.startsWith("/board");
 
-  // * Scenariusz 1: Zalogowany użytkownik próbuje wejść na formularze logowania/rejestracji
+  // Przekierowanie zalogowanego użytkownika z formularzy uwierzytelniania.
   if (token && isPublicAuthRoute) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // * Scenariusz 2: Niezalogowany użytkownik próbuje wejść do panelu lub na tablicę
+  // Przekierowanie niezalogowanego użytkownika do logowania.
   if (!token && isProtectedRoute) {
     const loginUrl = new URL("/login", request.url);
-    // Zapisujemy w query string adres, pod który użytkownik chciał wejść,
-    // aby można było go tam wrzucić powtórnie po udanym zalogowaniu.
+    // Zachowanie adresu docelowego do użycia po zalogowaniu.
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Jeśli warunki nie są spełnione, puszczamy żądanie dalej bez zmian
+  // Przekazanie żądania bez zmian, jeśli nie wymaga przekierowania.
   return NextResponse.next();
 }
 
-// Konfiguracja dopasowania ścieżek (matcher), na których działa middleware
+// Ścieżki obsługiwane przez middleware.
 export const config = {
   matcher: [
     "/login",

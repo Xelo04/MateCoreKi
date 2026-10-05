@@ -1,9 +1,7 @@
-// ==========================================
-// KONFIGURACJA: Moduł Kalendarza
-// ==========================================
-// TODO: W przyszłości pobierane z ustawień konta korepetytora
+// Konfiguracja modułu kalendarza.
+// TODO: Odczyt ustawienia z konfiguracji konta korepetytora.
 
 export const CalendarSettings = {
-  // Czy funkcja śledzenia płatności jest włączona w interfejsie (ikona na siatce + przycisk w modalu)
+  // Włączenie śledzenia płatności w interfejsie.
   showPaymentStatus: true,
 };

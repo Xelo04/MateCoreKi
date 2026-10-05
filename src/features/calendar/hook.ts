@@ -1,8 +1,8 @@
 // ==========================================
-// HOOK: Pobieranie i mutacje kalendarza tygodniowego
+// Pobieranie i mutacje kalendarza tygodniowego.
 // ==========================================
 // useCalendarWeek — pobiera lekcje na zakres dat i udostępnia akcje CRUD
-// z powiadomieniami toast. Automatycznie refetchuje po każdej mutacji.
+// Obsługa powiadomień toast i odświeżania po każdej mutacji.
 
 "use client";
 

@@ -30,7 +30,7 @@ export function Board({ boardId }: BoardProps) {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
-      {/* Obszar tablicy Excalidraw */}
+      {/* Obszar tablicy Excalidraw. */}
       <div className="absolute inset-0 h-full w-full">
         {username !== "Ładowanie..." ? (
           <ExcalidrawBoard boardId={boardId} username={username} />
