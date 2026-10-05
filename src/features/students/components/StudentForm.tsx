@@ -41,13 +41,9 @@ import { studentFormSchema, type StudentFormData } from "../schema";
 import type { EducationType } from "../types";
 import { StudentService } from "../service";
 
-// ==========================================
-// KONTRAKT: Handle dla rodzica
-// ==========================================
-
 export interface StudentFormHandle {
-  // * Rodzic woła ten handle aby wyzwolić walidację + fetch.
-  // * Formularz sam pokazuje toast przy błędzie i zwraca wynik.
+  // * Pozwala rodzicowi walidować dane przed transakcją
+  validate: () => Promise<boolean>;
   submit: () => Promise<StudentFormResult>;
 }
 
@@ -112,6 +108,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(
       control,
       setValue,
       handleSubmit,
+      trigger,
       formState: { errors },
     } = methods;
 
@@ -132,7 +129,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(
       }
       if (educationType === "primary_school") {
         setValue("mathLevel", null, { shouldValidate: true });
-      } else if (!methods.getValues("mathLevel")) {
+      } else {
         setValue("mathLevel", "basic", { shouldValidate: true });
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -167,18 +164,20 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(
     );
 
     // ==========================================
-    // SYGNAŁ OD RODZICA: submit()
+    // SYGNAŁY OD RODZICA: validate() oraz submit()
     // ==========================================
-    // ! Formularz sam waliduje, fetchuje, pokazuje toast.
-    // ! Rodzic dostaje tylko wynik transakcji (success + id).
     useImperativeHandle(
       ref,
       () => ({
+        // * Walidacja Zod całego profilu ucznia
+        validate: async () => {
+          return trigger();
+        },
         submit: async (): Promise<StudentFormResult> => {
           // * Zwracamy Promise ręcznie - handleSubmit nie wspiera tego natywnie
           return new Promise((resolve) => {
             void handleSubmit(
-              async (data: StudentFormData) => {
+              async (data) => {
                 try {
                   const cleaned: StudentFormData = {
                     ...data,
@@ -208,7 +207,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(
                   const msg =
                     err instanceof Error
                       ? err.message
-                      : "Nie udało się zapisać ucznia";
+                      : "Nie udało się zapisarć ucznia";
                   console.error("StudentForm submit error:", err);
                   toast.error("Błąd zapisu ucznia", { description: msg });
                   resolve({ success: false, error: msg });
@@ -225,7 +224,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(
           });
         },
       }),
-      [handleSubmit, mode, studentId],
+      [handleSubmit, mode, studentId, trigger],
     );
 
     return (

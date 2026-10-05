@@ -86,11 +86,7 @@ export const lessonNotesSchema = z.object({
 
 export type LessonNotesData = z.infer<typeof lessonNotesSchema>;
 
-// ==========================================
-// SCHEMA: Tworzenie nowego zapisu w kalendarzu
-// ==========================================
-
-// * 1. Baza schematu jako czysty ZodObject (bez refinements) - pozwala na użycie .omit()
+// * Baza schematu jako czysty ZodObject (bez refinements) — pozwala na użycie .omit()
 export const lessonCreateBaseSchema = z.object({
   studentId: z.string({ message: "Wybierz ucznia" }).min(1, "Wybierz ucznia"),
   recurrence: z.enum(["none", "weekly", "biweekly"]),
@@ -123,29 +119,28 @@ export const lessonCreateBaseSchema = z.object({
   tutorNotes: z.string().max(2000).optional().or(z.literal("")),
 });
 
-// * 2. Pełny schemat tworzenia lekcji z walidacją krzyżową (używany w LessonFormModal)
+// * Pełny schemat tworzenia lekcji z walidacją krzyżową (używany w LessonFormModal)
 export const lessonCreateSchema = lessonCreateBaseSchema
   .refine(
     (data) => data.recurrence === "none" || data.dayOfWeek !== undefined,
     { message: "Wybierz dzień tygodnia", path: ["dayOfWeek"] },
   )
-  .refine((data) => !!data.date, {
-    message: "Wybierz datę spotkania lub datę startu cyklu",
+  .refine((data) => data.recurrence !== "none" || !!data.date, {
+    message: "Wybierz datę spotkania",
     path: ["date"],
   });
 
 export type LessonCreateData = z.infer<typeof lessonCreateSchema>;
 
-// * 3. Schemat dla osadzonego formularza lekcji (używany w LessonForm)
-// Utworzenie omit na bazie podstawowej przed nałożeniem walidacji krzyżowej.
+// * Schemat dla osadzonego formularza lekcji (używany w LessonForm)
 export const lessonFormSchema = lessonCreateBaseSchema
   .omit({ studentId: true })
   .refine(
     (data) => data.recurrence === "none" || data.dayOfWeek !== undefined,
     { message: "Wybierz dzień tygodnia", path: ["dayOfWeek"] },
   )
-  .refine((data) => !!data.date, {
-    message: "Wybierz datę spotkania lub datę startu cyklu",
+  .refine((data) => data.recurrence !== "none" || !!data.date, {
+    message: "Wybierz datę spotkania",
     path: ["date"],
   });
 

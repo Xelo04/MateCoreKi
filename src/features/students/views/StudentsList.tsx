@@ -1,6 +1,8 @@
 // ==========================================
-// WIDOK: Lista aktywnych i zarchiwizowanych uczniów z wyszukiwaniem.
+// WIDOK: Lista aktywnych i zarchiwizowanych uczniów z wyszukiwaniem
 // ==========================================
+// Główny panel zarządzania uczniami. Umożliwia wyszukiwanie, archiwizację,
+// edycję danych oraz bezpośrednie planowanie zajęć dla konkretnego ucznia.
 
 "use client";
 
@@ -15,14 +17,15 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { ContentLoader } from "@/components/layout/ContentLoader";
 
 import { useStudentsList } from "../hook";
 import { ActiveStudentCard } from "../components/ActiveStudentCard";
 import { ArchivedStudentCard } from "../components/ArchivedStudentCard";
 import { StudentFormModal } from "../components/StudentFormModal";
+import { LessonFormModal } from "@/features/calendar/components/LessonFormModal";
 import { StudentService } from "../service";
 import type { StudentFormData } from "../schema";
-import { ContentLoader } from "@/components/layout/ContentLoader";
 
 export function StudentsList() {
   const {
@@ -35,6 +38,8 @@ export function StudentsList() {
   } = useStudentsList();
 
   const [searchQuery, setSearchQuery] = useState("");
+
+  // * Stan dla modalu zarządzania profilem studenta (dodawanie/edycja)
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     mode: "add" | "edit";
@@ -45,7 +50,15 @@ export function StudentsList() {
     mode: "add",
   });
 
-  // Filtrowanie po imieniu lub nazwisku.
+  // * Stan dla modalu szybkiego planowania zajęć bezpośrednio z karty
+  const [planModalState, setPlanModalState] = useState<{
+    isOpen: boolean;
+    studentId?: string;
+  }>({
+    isOpen: false,
+  });
+
+  // * Filtrowanie uczniów po imieniu lub nazwisku
   const filteredActive = useMemo(() => {
     if (!searchQuery.trim()) return activeStudents;
     const lowerQuery = searchQuery.toLowerCase();
@@ -56,12 +69,14 @@ export function StudentsList() {
     );
   }, [activeStudents, searchQuery]);
 
-  // Otwarcie formularza dodawania.
-  const handleOpenAdd = () =>
-    setModalState({ isOpen: true, mode: "add", studentId: undefined });
+  // * Otwarcie formularza dodawania ucznia
+  const handleOpenAdd = useCallback(
+    () => setModalState({ isOpen: true, mode: "add", studentId: undefined }),
+    [],
+  );
 
-  // Otwarcie formularza edycji po pobraniu szczegółów.
-  const handleOpenEdit = async (id: string) => {
+  // * Otwarcie formularza edycji po pobraniu świeżych szczegółów z API
+  const handleOpenEdit = useCallback(async (id: string) => {
     try {
       const toastId = toast.loading("Pobieranie danych...");
       const details = await StudentService.getStudentDetails(id);
@@ -88,14 +103,35 @@ export function StudentsList() {
     } catch {
       toast.error("Nie udało się pobrać danych ucznia.");
     }
-  };
+  }, []);
 
-  // Odświeżenie listy po utworzeniu lub edycji ucznia.
+  // * Otwarcie szybkiego planowania lekcji dla wybranego ucznia
+  const handleOpenPlan = useCallback((id: string) => {
+    setPlanModalState({
+      isOpen: true,
+      studentId: id,
+    });
+  }, []);
+
+  // * Odświeżenie widoku po udanym zaplanowaniu lekcji (aktualizuje harmonogram na karcie)
+  const handlePlanSubmit = useCallback(async () => {
+    void refetch();
+    return true;
+  }, [refetch]);
+
+  // * Odświeżenie widoku po zmianach w profilu ucznia
   const handleStudentCreatedOrUpdated = useCallback(() => {
     void refetch();
   }, [refetch]);
 
-  // Wyświetlenie stanu ładowania do czasu pobrania danych.
+  // * Stabilna referencja dla wartości domyślnych planowania (zapobiega pętli renderu)
+  const planDefaults = useMemo(
+    () => ({
+      studentId: planModalState.studentId,
+    }),
+    [planModalState.studentId],
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-10 pb-16">
@@ -188,6 +224,7 @@ export function StudentsList() {
               student={student}
               onArchive={archiveStudent}
               onEdit={handleOpenEdit}
+              onPlan={handleOpenPlan} // * Podpięcie akcji szybkiego planowania lekcji
             />
           ))}
         </section>
@@ -227,6 +264,8 @@ export function StudentsList() {
           </Accordion>
         </div>
       )}
+
+      {/* * Modal dodawania / edycji profilu studenta */}
       <StudentFormModal
         open={modalState.isOpen}
         onOpenChange={(isOpen) =>
@@ -236,6 +275,17 @@ export function StudentsList() {
         studentId={modalState.studentId}
         defaultValues={modalState.defaultValues}
         onStudentCreated={handleStudentCreatedOrUpdated}
+      />
+
+      {/* * Modal szybkiego planowania zajęć bezpośrednio z karty ucznia */}
+      <LessonFormModal
+        open={planModalState.isOpen}
+        onOpenChange={(isOpen) =>
+          setPlanModalState((prev) => ({ ...prev, isOpen }))
+        }
+        defaultValues={planDefaults}
+        onSubmit={handlePlanSubmit}
+        hideStudentSelect={true}
       />
     </div>
   );

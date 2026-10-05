@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "sonner";
 import { useStudentsList } from "@/features/students/hook";
 
 import {
@@ -52,6 +53,11 @@ export function LessonFormModal({
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
   const [isAddingStudent, setIsAddingStudent] = useState(false);
 
+  // * Lokalny błąd walidacji dla selecta ucznia (nie jest polem RHF)
+  const [studentSelectError, setStudentSelectError] = useState<string | null>(
+    null,
+  );
+
   // * Dostrajanie stanu przy otwarciu (React 19 State Adjustment)
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
@@ -59,6 +65,7 @@ export function LessonFormModal({
     if (open) {
       setSelectedStudentId(defaultValues?.studentId || "");
       setIsAddingStudent(false);
+      setStudentSelectError(null);
     }
   }
 
@@ -71,18 +78,62 @@ export function LessonFormModal({
       setIsAddingStudent(false);
       setSelectedStudentId(val);
     }
+    // * Czyścimy błąd po dokonaniu wyboru
+    setStudentSelectError(null);
   }, []);
 
   // ==========================================
-  // ORKIESTRACJA TRANSAKCJI
+  // ORKIESTRACJA TRANSAKCJI (Walidacja + Commit)
   // ==========================================
   const handleModalSubmit = useCallback(async () => {
     if (!lessonFormRef.current) return;
 
     setIsSubmitting(true);
-    let finalStudentId = selectedStudentId;
 
-    // * Krok 1: Zapisz profil studenta jeśli tworzony inline
+    // ------------------------------------------
+    // FAZA 1: Walidacja wszystkich formularzy (Client-Side)
+    // ------------------------------------------
+
+    // * Walidacja wyboru ucznia (lub formularza nowego ucznia)
+    let isStudentValid = true;
+    if (hideStudentSelect) {
+      // * W widoku profilu studenta studentId przychodzi z defaultValues
+      isStudentValid = !!defaultValues?.studentId;
+    } else if (isAddingStudent) {
+      // * Walidujemy formularz nowego ucznia
+      isStudentValid = studentFormRef.current
+        ? await studentFormRef.current.validate()
+        : false;
+    } else {
+      // * Walidujemy wybór z selecta
+      if (!selectedStudentId) {
+        setStudentSelectError("Wybierz ucznia lub dodaj nowego");
+        isStudentValid = false;
+      } else {
+        setStudentSelectError(null);
+      }
+    }
+
+    // * Walidacja formularza lekcji
+    const isLessonValid = await lessonFormRef.current.validate();
+
+    // ! Jeśli którykolwiek formularz ma błędy — przerywamy transakcję.
+    // ! Formularze same podświetlą pola na czerwono i wyświetlą komunikaty.
+    if (!isStudentValid || !isLessonValid) {
+      setIsSubmitting(false);
+      toast.error("Formularz zawiera błędy walidacji", {
+        description: "Popraw czerwone pola przed zapisem.",
+      });
+      return;
+    }
+
+    // ------------------------------------------
+    // FAZA 2: Zapis do bazy danych (Commit)
+    // ------------------------------------------
+
+    let finalStudentId = selectedStudentId || defaultValues?.studentId || "";
+
+    // * Krok 2a: Zapisz profil studenta jeśli tworzony inline
     if (isAddingStudent && studentFormRef.current) {
       const studentResult = await studentFormRef.current.submit();
       if (!studentResult.success || !studentResult.studentId) {
@@ -98,7 +149,7 @@ export function LessonFormModal({
       return;
     }
 
-    // * Krok 2: Wyślij formularz lekcji
+    // * Krok 2b: Wyślij formularz lekcji
     const lessonResult = await lessonFormRef.current.submit({
       studentId: finalStudentId,
     });
@@ -115,6 +166,7 @@ export function LessonFormModal({
   }, [
     isAddingStudent,
     selectedStudentId,
+    hideStudentSelect,
     onSubmit,
     onOpenChange,
     refetchStudents,
@@ -156,6 +208,10 @@ export function LessonFormModal({
                 </SelectItem>
               </SelectContent>
             </Select>
+            {/* * Błąd walidacji wyboru ucznia */}
+            {studentSelectError && (
+              <p className="text-xs text-destructive">{studentSelectError}</p>
+            )}
           </div>
         )}
 

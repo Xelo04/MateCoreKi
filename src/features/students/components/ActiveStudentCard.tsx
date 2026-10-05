@@ -34,12 +34,14 @@ import { cn } from "@/lib/utils";
 interface ActiveStudentCardProps {
   student: StudentListItem;
   onEdit: (id: string) => void;
+  onPlan: (id: string) => void;
   onArchive: (id: string) => void;
 }
 
 export function ActiveStudentCard({
   student,
   onEdit,
+  onPlan,
   onArchive,
 }: ActiveStudentCardProps) {
   const router = useRouter();
@@ -192,6 +194,7 @@ export function ActiveStudentCard({
       >
         <Button
           variant="secondary"
+          onClick={() => onPlan(student.id)}
           className={cn(
             "w-full justify-center text-sm font-semibold text-foreground/80 shadow-none transition-colors",
             colorInfo.hoverBg,

@@ -2,7 +2,6 @@
 // KOMPONENT: Modal dodawania / edycji ucznia
 // ==========================================
 // Orkiestrator transakcji: StudentForm + N × LessonForm.
-// Submit sekwencyjny: najpierw uczeń, potem zajęcia z jego ID.
 
 "use client";
 
@@ -59,7 +58,7 @@ export function StudentFormModal({
     [],
   );
 
-  // * Dodanie nowego formularza lekcji (używa lokalnego licznika ref bezpiecznego dla SSR)
+  // * Dodanie nowego formularza lekcji
   const handleAddLesson = useCallback(() => {
     lessonKeyCounterRef.current += 1;
     const key = `lesson-${lessonKeyCounterRef.current}-${Date.now()}`;
@@ -81,24 +80,55 @@ export function StudentFormModal({
   }, [isSubmitting, onOpenChange]);
 
   // ==========================================
-  // ORKIESTRACJA TRANSAKCJI
+  // ORKIESTRACJA TRANSAKCJI (Commit i Walidacja)
   // ==========================================
   const handleSubmit = useCallback(async () => {
     if (!studentFormRef.current) return;
 
     setIsSubmitting(true);
 
-    // * Krok 1: Zapisz ucznia
+    // ------------------------------------------
+    // FAZA 1: Walidacja wszystkich formularzy (Client-Side)
+    // ------------------------------------------
+    // * Walidujemy studenta
+    const isStudentValid = await studentFormRef.current.validate();
+
+    // * Walidujemy każdą dodaną lekcję
+    let areLessonsValid = true;
+    for (const key of lessonKeys) {
+      const lessonRef = lessonRefs.current.get(key);
+      if (lessonRef) {
+        const isValid = await lessonRef.validate();
+        if (!isValid) {
+          areLessonsValid = false;
+        }
+      }
+    }
+
+    // ! Jeśli którykolwiek formularz ma błędy walidacji, przerywamy transakcję.
+    // ! Formularze same podświetlą pola na czerwono i wyświetlą komunikaty.
+    if (!isStudentValid || !areLessonsValid) {
+      setIsSubmitting(false);
+      toast.error("Formularz zawiera błędy walidacji", {
+        description: "Popraw czerwone pola przed zapisem.",
+      });
+      return;
+    }
+
+    // ------------------------------------------
+    // FAZA 2: Zapis do bazy danych (Commit)
+    // ------------------------------------------
+    // * Krok 2a: Zapisujemy ucznia w bazie
     const studentResult = await studentFormRef.current.submit();
 
     if (!studentResult.success || !studentResult.studentId) {
       setIsSubmitting(false);
-      return;
+      return; // * Błąd API zapisany w toast przez StudentForm
     }
 
     const newStudentId = studentResult.studentId;
 
-    // * Krok 2: Zapisz zajęcia sekwencyjnie (każde potrzebuje studentId)
+    // * Krok 2b: Zapisujemy zajęcia sekwencyjnie
     if (lessonKeys.length > 0) {
       let failedCount = 0;
 
@@ -123,7 +153,7 @@ export function StudentFormModal({
       }
     }
 
-    // * Krok 3: Sukces - powiadom rodzica i zamknij
+    // * Krok 3: Pełny sukces transakcji
     onStudentCreated?.(newStudentId);
     setLessonKeys([]);
     lessonRefs.current.clear();

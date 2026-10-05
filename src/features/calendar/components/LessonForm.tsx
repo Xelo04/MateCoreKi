@@ -4,9 +4,6 @@
 // Czysty formularz planowania lekcji z własnym useForm i walidacją Zod.
 // Czeka na sygnał submit({ studentId }) od rodzica, sam fetchuje
 // CalendarService, sam sprawdza kolizje, sam pokazuje toast.
-//
-// * Gdy showHeader=true, formularz renderuje się jako karta z numerem i przyciskiem usuwania.
-// * Gdy showHeader=false, renderuje się jako płaski zestaw pól bez nagłówka i ramki.
 
 "use client";
 
@@ -55,14 +52,13 @@ import {
   parseDateKey,
   jsDayToDayOfWeek,
   WEEK_DAYS,
+  toDateKey,
 } from "../utils";
 import type { OverlapConflict } from "../types";
 
-// ==========================================
-// KONTRAKT: Handle dla rodzica
-// ==========================================
-
 export interface LessonFormHandle {
+  // * Pozwala rodzicowi sprawdzić poprawność formularza przed transakcją
+  validate: () => Promise<boolean>;
   submit: (context: LessonFormContext) => Promise<LessonFormResult>;
 }
 
@@ -109,6 +105,7 @@ export const LessonForm = forwardRef<LessonFormHandle, LessonFormProps>(
       control,
       setValue,
       handleSubmit,
+      trigger,
       formState: { errors },
     } = useForm<LessonFormData>({
       resolver: zodResolver(lessonFormSchema),
@@ -234,11 +231,15 @@ export const LessonForm = forwardRef<LessonFormHandle, LessonFormProps>(
     ]);
 
     // ==========================================
-    // SYGNAŁ OD RODZICA: submit({ studentId })
+    // SYGNAŁY OD RODZICA: validate() oraz submit()
     // ==========================================
     useImperativeHandle(
       ref,
       () => ({
+        // * Wywołuje walidację Zod i podświetla błędy w tym formularzu
+        validate: async () => {
+          return trigger();
+        },
         submit: async (
           context: LessonFormContext,
         ): Promise<LessonFormResult> => {
@@ -246,8 +247,12 @@ export const LessonForm = forwardRef<LessonFormHandle, LessonFormProps>(
             void handleSubmit(
               async (data) => {
                 try {
+                  const finalDate =
+                    !isSingle && !data.date ? toDateKey(new Date()) : data.date;
+
                   const fullData: LessonCreateData = {
                     ...data,
+                    date: finalDate,
                     studentId: context.studentId,
                   };
                   await CalendarService.createLesson(fullData);
@@ -273,7 +278,7 @@ export const LessonForm = forwardRef<LessonFormHandle, LessonFormProps>(
           });
         },
       }),
-      [handleSubmit],
+      [handleSubmit, isSingle, trigger],
     );
 
     const formatConflictDate = (d: string) => {
@@ -475,9 +480,9 @@ export const LessonForm = forwardRef<LessonFormHandle, LessonFormProps>(
         {/* * Data startu cyklu (tylko regularne) */}
         {!isSingle && (
           <div className="space-y-1.5">
-            <Label>Data startu cyklu</Label>
+            <Label>Data startu cyklu (opcjonalnie)</Label>
             <p className="text-xs text-muted-foreground -mt-1">
-              Od tej daty reguła zaczyna generować zajęcia.
+              Zostaw puste, aby reguła zaczęła generować zajęcia od dziś.
             </p>
             <Controller
               control={control}
@@ -486,7 +491,7 @@ export const LessonForm = forwardRef<LessonFormHandle, LessonFormProps>(
                 <DatePicker
                   value={field.value}
                   onChange={field.onChange}
-                  placeholder="Wybierz datę startu"
+                  placeholder="Zostaw puste dla dzisiejszego startu"
                 />
               )}
             />
