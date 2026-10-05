@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Plus, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -32,8 +32,7 @@ export function StudentsList() {
     isLoading,
     archiveStudent,
     restoreStudent,
-    createStudent,
-    updateStudent,
+    refetch,
   } = useStudentsList();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -59,7 +58,8 @@ export function StudentsList() {
   }, [activeStudents, searchQuery]);
 
   // * Otwieranie w trybie dodawania
-  const handleOpenAdd = () => setModalState({ isOpen: true, mode: "add" });
+  const handleOpenAdd = () =>
+    setModalState({ isOpen: true, mode: "add", studentId: undefined });
 
   // * Otwieranie w trybie edycji (pobiera szczegóły i mapuje na formularz)
   const handleOpenEdit = async (id: string) => {
@@ -91,15 +91,10 @@ export function StudentsList() {
     }
   };
 
-  // * Obsługa zapisu (router pomiędzy create i update)
-  const handleModalSubmit = async (data: StudentFormData) => {
-    if (modalState.mode === "add") {
-      return await createStudent(data);
-    } else if (modalState.mode === "edit" && modalState.studentId) {
-      return await updateStudent(modalState.studentId, data);
-    }
-    return false;
-  };
+  // * Reakcja po utworzeniu lub edycji ucznia — automatyczny refetch listy
+  const handleStudentCreatedOrUpdated = useCallback(() => {
+    void refetch();
+  }, [refetch]);
 
   // * Komponent ładowania widoczny do momentu pobrania danych
   if (isLoading) {
@@ -239,8 +234,9 @@ export function StudentsList() {
           setModalState((prev) => ({ ...prev, isOpen }))
         }
         mode={modalState.mode}
+        studentId={modalState.studentId}
         defaultValues={modalState.defaultValues}
-        onSubmit={handleModalSubmit}
+        onStudentCreated={handleStudentCreatedOrUpdated}
       />
     </div>
   );

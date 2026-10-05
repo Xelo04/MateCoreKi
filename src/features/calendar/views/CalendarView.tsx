@@ -1,12 +1,18 @@
 // ==========================================
 // WIDOK: Globalny Kalendarz (/calendar)
 // ==========================================
-// Główny widok kalendarza — nawigacja tygodniowa/dzienna, filtr ucznia,
-// siatka z lekcjami, modale planowania i szczegółów, legenda statusów.
+// Główny widok kalendarza. Zarządza nawigacją i filtrem uczniów.
+// Select filtru uczniów posiada opcję dodania ucznia inline bezpośrednio pod nagłówkiem.
 
 "use client";
 
-import { useState, useMemo, useSyncExternalStore, useCallback } from "react";
+import {
+  useState,
+  useMemo,
+  useSyncExternalStore,
+  useCallback,
+  useRef,
+} from "react";
 import {
   startOfWeek,
   addDays,
@@ -25,8 +31,10 @@ import {
   X,
   Repeat,
   Calendar as CalendarIcon,
+  UserRoundPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -44,11 +52,13 @@ import { Calendar as CalendarComp } from "@/components/ui/calendar";
 import { useCalendarWeek } from "../hook";
 import { WeeklyCalendar } from "../components/WeeklyCalendar";
 import { LessonFormModal } from "../components/LessonFormModal";
-import { LessonDetailsModal } from "../components/LessonDetailsModal";
 import { useStudentsList } from "@/features/students/hook";
+import {
+  StudentForm,
+  type StudentFormHandle,
+} from "@/features/students/components/StudentForm";
 import { getStudentColor } from "@/features/students/utils";
 import { cn } from "@/lib/utils";
-import { CalendarSettings } from "@/config";
 import type {
   LessonCreateData,
   LessonNotesData,
@@ -56,6 +66,8 @@ import type {
   LessonCancelData,
 } from "../schema";
 import type { CalendarLessonItem } from "../types";
+import { LessonDetailsModal } from "../components/LessonDetailsModal";
+import { CalendarSettings } from "@/config";
 
 export function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -69,7 +81,11 @@ export function CalendarView() {
   const [selectedLesson, setSelectedLesson] =
     useState<CalendarLessonItem | null>(null);
 
-  // * Detekcja mobile przez useSyncExternalStore (SSR-safe)
+  // * Stany dla tworzenia studenta inline pod nagłówkiem
+  const [isAddingStudentInline, setIsAddingStudentInline] = useState(false);
+  const studentFormRef = useRef<StudentFormHandle>(null);
+  const [isSavingStudent, setIsSavingStudent] = useState(false);
+
   const isMobile = useSyncExternalStore(
     (callback) => {
       window.addEventListener("resize", callback);
@@ -79,7 +95,6 @@ export function CalendarView() {
     () => false,
   );
 
-  // * Dni bieżącego tygodnia (pon–niedz)
   const weekDays = useMemo(() => {
     const start = startOfWeek(currentDate, { weekStartsOn: 1 });
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
@@ -88,11 +103,10 @@ export function CalendarView() {
   const fromDate = format(weekDays[0], "yyyy-MM-dd");
   const toDate = format(weekDays[6], "yyyy-MM-dd");
 
-  // * Hook kalendarza — pobieranie + wszystkie mutacje
   const {
     items,
     isLoading,
-    createLesson,
+    refetch,
     updateLessonNotes,
     moveLesson,
     cancelLesson,
@@ -103,11 +117,11 @@ export function CalendarView() {
     selectedStudentId === "all" ? undefined : selectedStudentId,
   );
 
-  const { activeStudents } = useStudentsList();
+  const { activeStudents, refetch: refetchStudents } = useStudentsList();
 
   const monthLabel = format(currentDate, "LLLL yyyy", { locale: pl });
 
-  // * Nawigacja — na mobile przesuwamy o 1 dzień, na desktop o 1 tydzień
+  // * Nawigacja kalendarza
   const handlePrev = useCallback(() => {
     setCurrentDate((d) => (isMobile ? subDays(d, 1) : subWeeks(d, 1)));
   }, [isMobile]);
@@ -120,7 +134,35 @@ export function CalendarView() {
     setCurrentDate(new Date());
   }, []);
 
-  // * Otwarcie modalu planowania z prefill z nagłówka
+  // * Obsługa wyboru studenta w selectie
+  const handleStudentFilterChange = useCallback((val: string) => {
+    if (val === "add-new-student-main-filter") {
+      setIsAddingStudentInline(true);
+      setSelectedStudentId("all");
+    } else {
+      setSelectedStudentId(val);
+    }
+  }, []);
+
+  // * Zapis studenta dodawanego inline
+  const handleSaveStudentInline = useCallback(async () => {
+    if (!studentFormRef.current) return;
+    setIsSavingStudent(true);
+    const result = await studentFormRef.current.submit();
+    setIsSavingStudent(false);
+
+    if (result.success && result.studentId) {
+      await refetchStudents();
+      setSelectedStudentId(result.studentId); // * Automatycznie wybierz nowo dodanego studenta
+      setIsAddingStudentInline(false);
+    }
+  }, [refetchStudents]);
+
+  const handleCancelSaveStudentInline = useCallback(() => {
+    setIsAddingStudentInline(false);
+  }, []);
+
+  // * Szybkie planowanie
   const handlePlanClick = useCallback(() => {
     setModalDefaults({
       studentId: selectedStudentId === "all" ? undefined : selectedStudentId,
@@ -129,7 +171,6 @@ export function CalendarView() {
     setIsModalOpen(true);
   }, [selectedStudentId, currentDate]);
 
-  // * Otwarcie modalu planowania z prefill z kliknięcia w pusty slot
   const handleEmptySlotClick = useCallback(
     (date: string, time: string) => {
       setModalDefaults({
@@ -143,20 +184,17 @@ export function CalendarView() {
     [selectedStudentId],
   );
 
-  // * Submit nowego planowania — deleguje do hooka (toast + refetch w środku)
-  const handleCreateSubmit = async (
-    data: LessonCreateData,
-  ): Promise<boolean> => {
-    return createLesson(data);
+  const handleCreateSubmit = async (): Promise<boolean> => {
+    refetch();
+    return true;
   };
 
-  // * Otwarcie modalu szczegółów po kliknięciu w blok lekcji
+  // * Detale lekcji
   const handleItemClick = useCallback((item: CalendarLessonItem) => {
     setSelectedLesson(item);
     setIsDetailsModalOpen(true);
   }, []);
 
-  // * Delegacja mutacji do hooka — przekazujemy identyfikator wybranej lekcji
   const handleUpdateNotes = async (data: LessonNotesData): Promise<boolean> => {
     if (!selectedLesson) return false;
     return updateLessonNotes(
@@ -205,7 +243,7 @@ export function CalendarView() {
 
   return (
     <div className="space-y-4">
-      {/* * Nagłówek z tytułem miesiąca i zakresem tygodnia */}
+      {/* * Pasek górny filtrów i akcji */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
@@ -225,9 +263,7 @@ export function CalendarView() {
           </div>
         </div>
 
-        {/* * Pasek narzędzi — nawigacja, skok do daty, filtr ucznia, planuj */}
         <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-3">
-          {/* * Przycisk planowania nowej lekcji */}
           <Button
             className="h-11 w-full xl:w-auto shadow-md order-1 xl:order-4"
             onClick={handlePlanClick}
@@ -235,10 +271,10 @@ export function CalendarView() {
             <Plus className="mr-2 h-4 w-4" /> Zaplanuj
           </Button>
 
-          {/* * Filtr ucznia */}
+          {/* * Filtrowanie z opcją "Dodaj studenta" */}
           <Select
             value={selectedStudentId}
-            onValueChange={setSelectedStudentId}
+            onValueChange={handleStudentFilterChange}
           >
             <SelectTrigger className="h-11 w-full xl:w-55 order-2 xl:order-3 bg-card">
               <SelectValue placeholder="Wszyscy uczniowie" />
@@ -250,16 +286,24 @@ export function CalendarView() {
                   {s.firstName} {s.lastName}
                 </SelectItem>
               ))}
+              <Separator className="my-1.5" />
+              <SelectItem
+                value="add-new-student-main-filter"
+                className="text-primary font-bold focus:text-primary focus:bg-primary/5 cursor-pointer"
+              >
+                <span className="flex items-center gap-1.5">
+                  <UserRoundPlus className="h-4 w-4" />
+                  Dodaj nowego ucznia
+                </span>
+              </SelectItem>
             </SelectContent>
           </Select>
 
-          {/* * Popover skoku do konkretnej daty */}
           <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
             <PopoverTrigger asChild>
               <button
                 type="button"
                 className="flex items-center h-11 w-full xl:w-auto px-4 justify-start rounded-xl border border-input bg-card text-foreground shadow-sm font-medium text-sm transition-colors hover:bg-accent/50 order-3 xl:order-2 outline-none cursor-pointer"
-                aria-label="Skocz do wybranej daty"
               >
                 <CalendarSearch className="mr-2 h-4 w-4 text-primary" />
                 Skocz do daty...
@@ -280,14 +324,12 @@ export function CalendarView() {
             </PopoverContent>
           </Popover>
 
-          {/* * Nawigacja prev / dzisiaj / next */}
           <div className="flex w-full xl:w-auto items-center rounded-xl border border-border/50 bg-card p-1 shadow-sm order-4 xl:order-1">
             <Button
               variant="ghost"
               size="icon"
               className="h-9 flex-1 xl:flex-none"
               onClick={handlePrev}
-              aria-label="Poprzedni"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
@@ -304,7 +346,6 @@ export function CalendarView() {
               size="icon"
               className="h-9 flex-1 xl:flex-none"
               onClick={handleNext}
-              aria-label="Następny"
             >
               <ChevronRight className="h-5 w-5" />
             </Button>
@@ -312,7 +353,47 @@ export function CalendarView() {
         </div>
       </div>
 
-      {/* * Siatka kalendarza tygodniowego */}
+      {/* * Formularz dodawania studenta inline pod filtrami (rozwijany) */}
+      {isAddingStudentInline && (
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-4 animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-primary flex items-center gap-1.5">
+              <UserRoundPlus className="h-4 w-4" />
+              Szybkie tworzenie profilu ucznia
+            </h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCancelSaveStudentInline}
+              className="text-muted-foreground hover:text-foreground h-8"
+            >
+              Anuluj
+            </Button>
+          </div>
+
+          <StudentForm ref={studentFormRef} mode="add" />
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-primary/10">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelSaveStudentInline}
+              disabled={isSavingStudent}
+            >
+              Anuluj
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveStudentInline}
+              disabled={isSavingStudent}
+              className="h-11 min-w-28"
+            >
+              {isSavingStudent ? "Zapisywanie..." : "Utwórz profil ucznia"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       <WeeklyCalendar
         days={weekDays}
         selectedDate={currentDate}
@@ -322,9 +403,8 @@ export function CalendarView() {
         onEmptySlotClick={handleEmptySlotClick}
       />
 
-      {/* * Legenda statusów, kolorów uczniów i ikon */}
+      {/* LEGENDA STATUSÓW I KOLORÓW */}
       <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-xs font-medium text-muted-foreground mt-2 px-2">
-        {/* * Kolory przypisane do uczniów */}
         {activeStudents.map((student) => {
           const colorInfo = getStudentColor(student.id);
           return (
@@ -343,7 +423,6 @@ export function CalendarView() {
           <div className="h-4 border-l border-border/60 mx-1 hidden md:block" />
         )}
 
-        {/* * Statusy lekcji */}
         <div className="flex items-center gap-1.5">
           <div className="h-3.5 w-3.5 rounded-[4px] border border-destructive/20 bg-destructive/10 flex items-center justify-center">
             <X className="h-2.5 w-2.5 text-destructive/70" strokeWidth={3} />
@@ -358,7 +437,7 @@ export function CalendarView() {
 
         <div className="h-4 border-l border-border/60 mx-1 hidden md:block" />
 
-        {/* * Typ zajęć */}
+        {/* Legendy typu zajęć */}
         <div className="flex items-center gap-1.5">
           <Repeat
             className="h-3.5 w-3.5 text-muted-foreground/70"
@@ -375,7 +454,7 @@ export function CalendarView() {
           <span>Jednorazowe</span>
         </div>
 
-        {/* * Status płatności */}
+        {/* Legendy płatności */}
         {CalendarSettings.showPaymentStatus && (
           <>
             <div className="h-4 border-l border-border/60 mx-1 hidden md:block" />
@@ -397,7 +476,6 @@ export function CalendarView() {
         )}
       </div>
 
-      {/* * Modal planowania nowej lekcji */}
       <LessonFormModal
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
@@ -405,7 +483,6 @@ export function CalendarView() {
         onSubmit={handleCreateSubmit}
       />
 
-      {/* * Modal szczegółów i akcji istniejącej lekcji */}
       <LessonDetailsModal
         open={isDetailsModalOpen}
         onOpenChange={setIsDetailsModalOpen}

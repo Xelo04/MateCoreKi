@@ -4,6 +4,7 @@
 
 "use client";
 
+import { useMemo } from "react";
 import { Trash2 } from "lucide-react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -36,9 +37,6 @@ const RECURRENCE_OPTIONS = [
   { value: "none", label: "Jednorazowo" },
 ];
 
-const TODAY = new Date();
-TODAY.setHours(0, 0, 0, 0);
-
 interface ScheduleSlotRowProps {
   index: number;
   onRemove: () => void;
@@ -59,6 +57,13 @@ export function ScheduleSlotRow({ index, onRemove }: ScheduleSlotRowProps) {
   const slotErrors = errors.scheduleSlots?.[index];
 
   const isSingle = recurrence === "none";
+
+  // * Dynamiczne wyznaczenie progu daty "dzisiaj" dla DatePickera
+  const minSelectableDate = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }, []);
 
   const handleRecurrenceChange = (val: string) => {
     setValue(
@@ -88,6 +93,7 @@ export function ScheduleSlotRow({ index, onRemove }: ScheduleSlotRowProps) {
           size="icon-sm"
           className="text-muted-foreground hover:text-destructive"
           onClick={onRemove}
+          aria-label={`Usuń termin ${index + 1}`}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -161,7 +167,7 @@ export function ScheduleSlotRow({ index, onRemove }: ScheduleSlotRowProps) {
                 <DatePicker
                   value={field.value}
                   onChange={field.onChange}
-                  minDate={TODAY}
+                  minDate={minSelectableDate}
                   placeholder="Wybierz datę"
                 />
               )}
@@ -220,7 +226,7 @@ export function ScheduleSlotRow({ index, onRemove }: ScheduleSlotRowProps) {
                 <DatePicker
                   value={field.value}
                   onChange={field.onChange}
-                  minDate={TODAY}
+                  minDate={minSelectableDate}
                   placeholder="Zostaw puste, aby zacząć od dziś"
                 />
               )}

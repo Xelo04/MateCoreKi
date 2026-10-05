@@ -54,8 +54,17 @@ export function ActiveStudentCard({
   return (
     <Card
       onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleCardClick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Profil ucznia ${student.firstName} ${student.lastName}`}
       className={cn(
-        "cursor-pointer group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-card p-6 shadow-sm transition-all hover:shadow-md",
+        "cursor-pointer group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border/60 bg-card p-6 shadow-sm transition-all hover:shadow-md outline-none focus-visible:ring-2 focus-visible:ring-primary",
         colorInfo.hoverBorder,
       )}
     >
@@ -149,6 +158,7 @@ export function ActiveStudentCard({
             <Button
               variant="ghost"
               size="icon-sm"
+              aria-label="Opcje ucznia"
               className="rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <MoreVertical className="h-4 w-4" />
@@ -163,14 +173,19 @@ export function ActiveStudentCard({
             >
               <Pencil className="mr-2 h-4 w-4" /> Edytuj
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onArchive(student.id)}>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onArchive(student.id);
+              }}
+            >
               <Archive className="mr-2 h-4 w-4" /> Archiwizuj
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
-      {/* Dodatkowe akcje */}
+      {/* Dodatkowe akcje (celowo pozostawiona atrapa bez podpiętego onClick) */}
       <div
         className="relative z-10 mt-3 flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}

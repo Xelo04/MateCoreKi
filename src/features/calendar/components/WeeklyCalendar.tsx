@@ -27,6 +27,8 @@ interface WeeklyCalendarProps {
 
 const START_HOUR = 0;
 const END_HOUR = 23;
+const SLOT_INTERVAL_MINUTES = 30;
+const MAX_SLOT_MINUTES = END_HOUR * 60 + SLOT_INTERVAL_MINUTES;
 // * 1.4 px/min -> 84 px/h — wystarczająca gęstość do czytelnych bloków
 const MINUTE_HEIGHT = 1.4;
 const HOUR_HEIGHT = 60 * MINUTE_HEIGHT;
@@ -280,9 +282,13 @@ export function WeeklyCalendar({
                     const rect = e.currentTarget.getBoundingClientRect();
                     const y = e.clientY - rect.top;
                     const totalMins = START_HOUR * 60 + y / MINUTE_HEIGHT;
-                    const snappedMins = Math.floor(totalMins / 30) * 30;
-                    const h = Math.floor(snappedMins / 60);
-                    const m = snappedMins % 60;
+                    const snappedMins = Math.floor(totalMins / SLOT_INTERVAL_MINUTES) * SLOT_INTERVAL_MINUTES;
+                    const clampedMins = Math.min(
+                      Math.max(snappedMins, 0),
+                      MAX_SLOT_MINUTES,
+                    );
+                    const h = Math.floor(clampedMins / 60);
+                    const m = clampedMins % 60;
                     onEmptySlotClick?.(
                       dateStr,
                       `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,

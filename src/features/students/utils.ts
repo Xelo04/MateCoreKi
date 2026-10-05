@@ -9,6 +9,12 @@ import type {
   ScheduleSlot,
 } from "./types";
 
+// * Safe parse date ISO "YYYY-MM-DD" w czasie lokalnym (T12:00:00) zapobiega przesunięciom stref UTC/DST
+export const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+};
+
 // * Formatuje systemowe klucze edukacji na przyjazny tekst, np. "3 LO (Rozszerzenie)"
 export const formatEducationLabel = (
   type: EducationType,
@@ -28,7 +34,9 @@ export const formatEducationLabel = (
 
 // * Wyciąga 2 pierwsze litery imienia i nazwiska w formacie UPPERCASE (np. "JK")
 export const getInitials = (firstName: string, lastName: string): string => {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const f = firstName.trim().charAt(0) || "";
+  const l = lastName.trim().charAt(0) || "";
+  return `${f}${l}`.toUpperCase();
 };
 
 // * Paleta kolorów dla kart uczniów
@@ -77,7 +85,7 @@ export const STUDENT_COLORS = [
   },
 ];
 
-// * Zwraca kolor karty ucznia na podstawie jego ID (hashowanie) */
+// * Zwraca kolor karty ucznia na podstawie jego ID (hashowanie)
 export const getStudentColor = (id: string) => {
   const hash = id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return STUDENT_COLORS[hash % STUDENT_COLORS.length];
@@ -111,8 +119,9 @@ export const formatSchedulesForCard = (
   slots
     .filter((s) => s.recurrence !== "none")
     .forEach((slot) => {
+      const dayName = slot.dayOfWeek ? DAY_NAMES[slot.dayOfWeek] : "";
       results.push({
-        text: `${DAY_NAMES[slot.dayOfWeek]}, ${slot.startTime}`,
+        text: `${dayName}, ${slot.startTime}`,
         durationMins: slot.durationMins,
         recurrence: slot.recurrence,
       });
@@ -124,15 +133,19 @@ export const formatSchedulesForCard = (
 
   const upcomingSingle = slots
     .filter((s) => s.recurrence === "none" && s.date)
-    .filter((s) => new Date(s.date!) >= now)
+    .filter((s) => parseLocalDate(s.date!) >= now)
     .sort(
-      (a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime(),
+      (a, b) =>
+        parseLocalDate(a.date!).getTime() - parseLocalDate(b.date!).getTime(),
     )[0];
 
   if (upcomingSingle) {
     const [, month, day] = upcomingSingle.date!.split("-");
+    const dayName = upcomingSingle.dayOfWeek
+      ? DAY_NAMES[upcomingSingle.dayOfWeek]
+      : "";
     results.push({
-      text: `${day}.${month} (${DAY_NAMES[upcomingSingle.dayOfWeek]}), ${upcomingSingle.startTime}`,
+      text: `${day}.${month} (${dayName}), ${upcomingSingle.startTime}`,
       durationMins: upcomingSingle.durationMins,
       recurrence: "none",
     });

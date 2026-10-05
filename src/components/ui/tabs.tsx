@@ -5,16 +5,20 @@ import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
+// * Unikalne ID per instancja Tabs — zapobiega skakaniu animacji między osobnymi renderami
+let tabsInstanceCounter = 0;
+
 const TabsContext = React.createContext<{
   value?: string;
-  defaultValue?: string;
-}>({});
+  instanceId: string;
+}>({ instanceId: "" });
 
 const Tabs = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root>
 >(({ value, defaultValue, onValueChange, ...props }, ref) => {
   const [currentValue, setCurrentValue] = React.useState(value || defaultValue);
+  const [instanceId] = React.useState(() => `tabs-${++tabsInstanceCounter}`);
 
   const handleValueChange = (newValue: string) => {
     setCurrentValue(newValue);
@@ -28,7 +32,7 @@ const Tabs = React.forwardRef<
   }, [value]);
 
   return (
-    <TabsContext.Provider value={{ value: currentValue }}>
+    <TabsContext.Provider value={{ value: currentValue, instanceId }}>
       <TabsPrimitive.Root
         ref={ref}
         value={value}
@@ -55,7 +59,7 @@ const TabsList = React.forwardRef<
   const gridClass = {
     2: "grid-cols-1 sm:grid-cols-2",
     3: "grid-cols-1 sm:grid-cols-3",
-    4: "grid-cols-2 lg:grid-cols-4", // Na mobile 2x2, na desktop 1x4
+    4: "grid-cols-2 lg:grid-cols-4",
     5: "grid-cols-2 md:grid-cols-3 lg:grid-cols-5",
   }[cols];
 
@@ -94,7 +98,7 @@ const TabsTrigger = React.forwardRef<
     >
       {isActive && (
         <motion.div
-          layoutId="activeTabPill"
+          layoutId={`tabPill-${context.instanceId}`}
           className="absolute inset-0 z-0 rounded-full bg-primary shadow-sm"
           initial={false}
           transition={{

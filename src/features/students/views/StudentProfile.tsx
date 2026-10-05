@@ -4,15 +4,9 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Calendar as CalendarIcon,
-  FilePenLine,
-  Clock4,
-  Pencil,
-} from "lucide-react";
+import { ArrowLeft, FilePenLine, Clock4, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContentLoader } from "@/components/layout/ContentLoader";
@@ -25,7 +19,7 @@ import {
 } from "../utils";
 import { StudentFormModal } from "../components/StudentFormModal";
 import { StudentInfoTab } from "../components/StudentProfileInfoTab";
-import type { StudentFormData } from "../schema";
+import { StudentCalendarTab } from "../components/StudentProfileCalendarTab";
 import { cn } from "@/lib/utils";
 
 interface StudentProfileProps {
@@ -34,9 +28,14 @@ interface StudentProfileProps {
 
 export function StudentProfile({ id }: StudentProfileProps) {
   const router = useRouter();
-  const { student, isLoading, error, updateStudent } = useStudentDetails(id);
+  const { student, isLoading, error, refetch } = useStudentDetails(id);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // * Odświeżanie szczegółów po zapisie w modalu edycji
+  const handleStudentUpdated = useCallback(() => {
+    void refetch();
+  }, [refetch]);
 
   if (isLoading) {
     return (
@@ -69,10 +68,6 @@ export function StudentProfile({ id }: StudentProfileProps) {
   }
 
   const colorInfo = getStudentColor(student.id);
-
-  const handleEditSubmit = async (data: StudentFormData) => {
-    return await updateStudent(data);
-  };
 
   return (
     <div className="mx-auto max-w-6xl pb-4 pt-4">
@@ -130,23 +125,8 @@ export function StudentProfile({ id }: StudentProfileProps) {
           <StudentInfoTab student={student} colorInfo={colorInfo} />
         </TabsContent>
 
-        <TabsContent
-          value="calendar"
-          className="pt-12 focus-visible:outline-none"
-        >
-          {/* PLACEHOLDER DLA KALENDARZA */}
-          <div className="flex flex-col items-center justify-center space-y-4 rounded-3xl border border-dashed border-border bg-secondary/10 p-12 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-              <CalendarIcon className="h-8 w-8 text-primary" />
-            </div>
-            <h3 className="text-lg font-bold text-foreground">
-              Kalendarz zajęć w przygotowaniu
-            </h3>
-            <p className="max-w-md text-sm text-muted-foreground">
-              Tutaj wkrótce pojawi się interaktywny kalendarz, w którym
-              zaplanujesz i zobaczysz wszystkie lekcje z tym uczniem.
-            </p>
-          </div>
+        <TabsContent value="calendar" className="focus-visible:outline-none">
+          <StudentCalendarTab studentId={student.id} />
         </TabsContent>
 
         <TabsContent
@@ -190,6 +170,8 @@ export function StudentProfile({ id }: StudentProfileProps) {
         open={isEditOpen}
         onOpenChange={setIsEditOpen}
         mode="edit"
+        studentId={student.id}
+        onStudentCreated={handleStudentUpdated}
         defaultValues={{
           firstName: student.firstName,
           lastName: student.lastName,
@@ -203,7 +185,6 @@ export function StudentProfile({ id }: StudentProfileProps) {
           notes: student.notes || "",
           scheduleSlots: student.scheduleSlots || [],
         }}
-        onSubmit={handleEditSubmit}
       />
     </div>
   );

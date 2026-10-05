@@ -86,39 +86,45 @@ export const lessonNotesSchema = z.object({
 
 export type LessonNotesData = z.infer<typeof lessonNotesSchema>;
 
-// * Schema tworzenia całkowicie nowego zapisu w kalendarzu
-export const lessonCreateSchema = z
-  .object({
-    studentId: z.string({ message: "Wybierz ucznia" }).min(1, "Wybierz ucznia"),
-    recurrence: z.enum(["none", "weekly", "biweekly"]),
-    dayOfWeek: z
-      .union([
-        z.literal(1),
-        z.literal(2),
-        z.literal(3),
-        z.literal(4),
-        z.literal(5),
-        z.literal(6),
-        z.literal(7),
-      ])
-      .optional(),
-    date: z
-      .string()
-      .regex(DATE_REGEX, "Nieprawidłowa data")
-      .optional()
-      .or(z.literal("")),
-    startTime: z
-      .string({ message: "Wybierz godzinę" })
-      .min(1, "Wybierz godzinę")
-      .regex(TIME_REGEX, "Format GG:MM (np. 16:30)"),
-    durationMins: z
-      .number({ message: "Podaj czas trwania" })
-      .int("Podaj liczbę całkowitą")
-      .min(15, "Minimum 15 minut")
-      .max(300, "Maks. 300 minut"),
-    topic: z.string().max(200).optional().or(z.literal("")),
-    tutorNotes: z.string().max(2000).optional().or(z.literal("")),
-  })
+// ==========================================
+// SCHEMA: Tworzenie nowego zapisu w kalendarzu
+// ==========================================
+
+// * 1. Baza schematu jako czysty ZodObject (bez refinements) — pozwala na użycie .omit()
+export const lessonCreateBaseSchema = z.object({
+  studentId: z.string({ message: "Wybierz ucznia" }).min(1, "Wybierz ucznia"),
+  recurrence: z.enum(["none", "weekly", "biweekly"]),
+  dayOfWeek: z
+    .union([
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+      z.literal(4),
+      z.literal(5),
+      z.literal(6),
+      z.literal(7),
+    ])
+    .optional(),
+  date: z
+    .string()
+    .regex(DATE_REGEX, "Nieprawidłowa data")
+    .optional()
+    .or(z.literal("")),
+  startTime: z
+    .string({ message: "Wybierz godzinę" })
+    .min(1, "Wybierz godzinę")
+    .regex(TIME_REGEX, "Format GG:MM (np. 16:30)"),
+  durationMins: z
+    .number({ message: "Podaj czas trwania" })
+    .int("Podaj liczbę całkowitą")
+    .min(15, "Minimum 15 minut")
+    .max(300, "Maks. 300 minut"),
+  topic: z.string().max(200).optional().or(z.literal("")),
+  tutorNotes: z.string().max(2000).optional().or(z.literal("")),
+});
+
+// * 2. Pełny schemat tworzenia lekcji z walidacją krzyżową (używany w LessonFormModal)
+export const lessonCreateSchema = lessonCreateBaseSchema
   .refine(
     (data) => data.recurrence === "none" || data.dayOfWeek !== undefined,
     { message: "Wybierz dzień tygodnia", path: ["dayOfWeek"] },
@@ -129,3 +135,18 @@ export const lessonCreateSchema = z
   });
 
 export type LessonCreateData = z.infer<typeof lessonCreateSchema>;
+
+// * 3. Schemat dla osadzonego formularza lekcji (używany w LessonForm)
+// * Tworzymy omit na czystej bazie, a dopiero potem nakładamy walidację krzyżową
+export const lessonFormSchema = lessonCreateBaseSchema
+  .omit({ studentId: true })
+  .refine(
+    (data) => data.recurrence === "none" || data.dayOfWeek !== undefined,
+    { message: "Wybierz dzień tygodnia", path: ["dayOfWeek"] },
+  )
+  .refine((data) => !!data.date, {
+    message: "Wybierz datę spotkania lub datę startu cyklu",
+    path: ["date"],
+  });
+
+export type LessonFormData = z.infer<typeof lessonFormSchema>;

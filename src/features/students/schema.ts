@@ -4,12 +4,21 @@
 
 import { z } from "zod";
 
-// * Telefon: dokładnie 9 cyfr (bez spacji - te są tylko w UI)
-const PHONE_REGEX = /^\d{9}$/;
+// * Telefon: dokładnie 9 cyfr (bez spacji i ew. prefiksu kraju)
+const PHONE_CLEAN_REGEX = /^\d{9}$/;
 // * Regex format "HH:MM" (24h)
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 // * Regex format "YYYY-MM-DD"
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+// * Pomocniczy czyściciel numeru telefonu (zdejmuje spacje i prefiks +48/48)
+const sanitizePhone = (val: unknown): string => {
+  if (typeof val !== "string") return "";
+  const digits = val.replace(/\D/g, "");
+  return digits.length === 11 && digits.startsWith("48")
+    ? digits.slice(2)
+    : digits;
+};
 
 const scheduleSlotSchema = z
   .object({
@@ -79,16 +88,16 @@ export const studentFormSchema = z
       .optional()
       .or(z.literal("")),
     phone: z
-      .string()
-      .regex(PHONE_REGEX, "Numer telefonu musi mieć dokładnie 9 cyfr")
-      .optional()
-      .or(z.literal("")),
+      .preprocess(sanitizePhone, z.string())
+      .refine((val) => val === "" || PHONE_CLEAN_REGEX.test(val), {
+        message: "Numer telefonu musi mieć dokładnie 9 cyfr",
+      }),
 
     parentPhone: z
-      .string()
-      .regex(PHONE_REGEX, "Numer telefonu musi mieć dokładnie 9 cyfr")
-      .optional()
-      .or(z.literal("")),
+      .preprocess(sanitizePhone, z.string())
+      .refine((val) => val === "" || PHONE_CLEAN_REGEX.test(val), {
+        message: "Numer telefonu musi mieć dokładnie 9 cyfr",
+      }),
 
     hourlyRate: z
       .number({ message: "Podaj kwotę" })

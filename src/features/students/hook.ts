@@ -1,11 +1,11 @@
 // ==========================================
-// HOOK: useStudentsList
+// HOOK: useStudentsList & useStudentDetails
 // ==========================================
-// Zarządza stanem listy uczniów z wbudowanymi optymistycznymi aktualizacjami
+// Zarządza stanem listy uczniów oraz szczegółów ucznia z obsługą asynchronicznych efektów
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { StudentService } from "./service";
 import type { StudentDetails, StudentListItem } from "./types";
@@ -16,11 +16,10 @@ export function useStudentsList() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isFetchedRef = useRef(false);
-
   // * Funkcja do pobrania listy uczniów
   const fetchStudents = useCallback(async () => {
     try {
+      setIsLoading(true);
       const data = await StudentService.getStudentsList();
       setStudents(data);
     } catch (err) {
@@ -33,12 +32,17 @@ export function useStudentsList() {
     }
   }, []);
 
-  // * Pobiera listę uczniów tylko raz przy montowaniu komponentu
+  // * Pobiera listę uczniów po zamontowaniu bez wywoływania synchronicznego setState w ciele efektu
   useEffect(() => {
-    if (isFetchedRef.current) return;
-    isFetchedRef.current = true;
-
-    void fetchStudents();
+    let isMounted = true;
+    Promise.resolve().then(() => {
+      if (isMounted) {
+        void fetchStudents();
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
   }, [fetchStudents]);
 
   // * Funkcja do archiwizacji ucznia
@@ -77,46 +81,6 @@ export function useStudentsList() {
     [students],
   );
 
-  // * Funkcja do tworzenia nowego ucznia
-  const createStudent = useCallback(
-    async (form: StudentFormData): Promise<boolean> => {
-      try {
-        const newStudent = await StudentService.createStudent(form);
-        setStudents((prev) => [newStudent, ...prev]);
-        toast.success("Uczeń został dodany.");
-        return true;
-      } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : "Nie udało się dodać ucznia.";
-        toast.error("Błąd", { description: msg });
-        return false;
-      }
-    },
-    [],
-  );
-
-  // * Funkcja do aktualizacji ucznia z poziomu listy kart
-  const updateStudent = useCallback(
-    async (id: string, form: StudentFormData): Promise<boolean> => {
-      try {
-        const updatedStudent = await StudentService.updateStudent(id, form);
-        setStudents((prev) =>
-          prev.map((s) => (s.id === id ? updatedStudent : s)),
-        );
-        toast.success("Dane ucznia zostały zaktualizowane.");
-        return true;
-      } catch (err) {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : "Nie udało się zaktualizować ucznia.";
-        toast.error("Błąd", { description: msg });
-        return false;
-      }
-    },
-    [],
-  );
-
   return {
     students,
     activeStudents: students.filter((s) => s.status === "active"),
@@ -125,8 +89,7 @@ export function useStudentsList() {
     error,
     archiveStudent,
     restoreStudent,
-    createStudent,
-    updateStudent,
+    refetch: fetchStudents,
   };
 }
 
@@ -135,11 +98,10 @@ export function useStudentDetails(id: string) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const lastFetchedIdRef = useRef<string | null>(null);
-
   // * Funkcja do pobrania szczegółów ucznia
   const fetchStudent = useCallback(async () => {
     try {
+      setIsLoading(true);
       const data = await StudentService.getStudentDetails(id);
       setStudent(data);
       setError(null);
@@ -153,12 +115,17 @@ export function useStudentDetails(id: string) {
     }
   }, [id]);
 
-  // * Pobiera dane tylko raz przy montowaniu / zmianie id
+  // * Pobiera dane po zamontowaniu/zmianie id bez synchronicznego wywoływania setState
   useEffect(() => {
-    if (lastFetchedIdRef.current === id) return;
-    lastFetchedIdRef.current = id;
-
-    void fetchStudent();
+    let isMounted = true;
+    Promise.resolve().then(() => {
+      if (isMounted) {
+        void fetchStudent();
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
   }, [id, fetchStudent]);
 
   // * Aktualizacja ucznia i odświeżenie danych profilu

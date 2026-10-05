@@ -199,33 +199,33 @@ const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 export const StudentService = {
   async getStudentsList(): Promise<StudentListItem[]> {
-    await delay(600);
+    await delay(300);
     return mockDatabase.map(mapStudentListItem);
   },
 
   async getStudentDetails(id: string): Promise<StudentDetails> {
-    await delay(500);
+    await delay(300);
     const student = mockDatabase.find((s) => s.id === id);
     if (!student) throw new Error("Nie znaleziono ucznia");
     return mapStudentDetails(student);
   },
 
   async archiveStudent(id: string): Promise<void> {
-    await delay(400);
+    await delay(200);
     mockDatabase = mockDatabase.map((s) =>
       s.id === id ? { ...s, status: "archived" } : s,
     );
   },
 
   async restoreStudent(id: string): Promise<void> {
-    await delay(400);
+    await delay(200);
     mockDatabase = mockDatabase.map((s) =>
       s.id === id ? { ...s, status: "active" } : s,
     );
   },
 
   async createStudent(form: StudentFormData): Promise<StudentDetails> {
-    await delay(700);
+    await delay(400);
     const payload = mapFormToApiPayload(form);
 
     const newId = `uuid-${Date.now()}`;
@@ -254,7 +254,7 @@ export const StudentService = {
     id: string,
     form: StudentFormData,
   ): Promise<StudentDetails> {
-    await delay(600);
+    await delay(400);
     const payload = mapFormToApiPayload(form);
 
     const index = mockDatabase.findIndex((s) => s.id === id);
@@ -270,6 +270,7 @@ export const StudentService = {
       hourly_rate: payload.hourly_rate,
       email: payload.email,
       phone: payload.phone,
+      parent_phone: payload.parent_phone,
       notes: payload.notes,
       schedule_slots: payload.schedule_slots,
     };
