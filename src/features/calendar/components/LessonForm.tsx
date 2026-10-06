@@ -75,7 +75,7 @@ interface LessonFormProps {
   readonly defaultValues?: Partial<LessonFormData>;
   // * Callback usunięcia tego formularza z listy (przycisk ×)
   readonly onRemove?: () => void;
-  // * Numer porządkowy — wyświetlany tylko gdy showHeader=true
+  // * Numer porządkowy - wyświetlany tylko gdy showHeader=true
   readonly index?: number;
   // * Czy pokazywać nagłówek z numerem i przyciskiem usunięcia
   // * (true w StudentFormModal z wieloma terminami, false w LessonFormModal)
@@ -297,7 +297,7 @@ export const LessonForm = forwardRef<LessonFormHandle, LessonFormProps>(
             "rounded-2xl border border-primary/40 bg-background p-4 sm:p-5 shadow-sm",
         )}
       >
-        {/* * Nagłówek i przycisk usuwania — renderowany tylko gdy showHeader=true */}
+        {/* * Nagłówek i przycisk usuwania - renderowany tylko gdy showHeader=true */}
         {showHeader && (
           <div className="flex items-center justify-between pb-2 border-b border-border/30">
             <span className="flex items-center gap-2 text-sm font-bold text-foreground">

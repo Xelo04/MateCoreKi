@@ -117,7 +117,7 @@ export function LessonFormModal({
     // * Walidacja formularza lekcji
     const isLessonValid = await lessonFormRef.current.validate();
 
-    // ! Jeśli którykolwiek formularz ma błędy — przerywamy transakcję.
+    // ! Jeśli którykolwiek formularz ma błędy - przerywamy transakcję.
     // ! Formularze same podświetlą pola na czerwono i wyświetlą komunikaty.
     if (!isStudentValid || !isLessonValid) {
       setIsSubmitting(false);

@@ -6,16 +6,22 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// * Klucz ciasteczka — musi być spójny z implementacją w klasie TokenStorage
+// * Klucz ciasteczka - musi być spójny z implementacją w klasie TokenStorage
 const TOKEN_KEY = "matcoreki:auth:token";
 
 // ----- Definicje zakresów tras -----
 
-// * Trasy uwierzytelniania — dostępne wyłącznie dla niezalogowanych użytkowników
+// * Trasy uwierzytelniania - dostępne wyłącznie dla niezalogowanych użytkowników
 const PUBLIC_AUTH_ROUTES = ["/login", "/register", "/forgot-password"];
 
-// * Wszystkie chronione trasy aplikacji — wymagają poprawnego tokena JWT
-const PROTECTED_ROUTES = ["/dashboard", "/board", "/calendar", "/students"];
+// * Wszystkie chronione trasy aplikacji - wymagają poprawnego tokena JWT
+const PROTECTED_ROUTES = [
+  "/dashboard",
+  "/board",
+  "/calendar",
+  "/students",
+  "/exercises",
+];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -44,7 +50,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // * Zgoda na przejście dalej — brak konieczności przekierowania
+  // * Zgoda na przejście dalej - brak konieczności przekierowania
   return NextResponse.next();
 }
 
@@ -62,5 +68,7 @@ export const config = {
     "/calendar/:path*",
     "/students",
     "/students/:path*",
+    "/exercises",
+    "/exercises/:path*",
   ],
 };

@@ -31,7 +31,7 @@ const NAV_ITEMS = [
   },
   {
     title: "Baza Zadań",
-    href: "/tasks",
+    href: "/exercises",
     icon: LibraryBig,
   },
   {

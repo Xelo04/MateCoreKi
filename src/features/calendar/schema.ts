@@ -86,7 +86,7 @@ export const lessonNotesSchema = z.object({
 
 export type LessonNotesData = z.infer<typeof lessonNotesSchema>;
 
-// * Baza schematu jako czysty ZodObject (bez refinements) — pozwala na użycie .omit()
+// * Baza schematu jako czysty ZodObject (bez refinements) - pozwala na użycie .omit()
 export const lessonCreateBaseSchema = z.object({
   studentId: z.string({ message: "Wybierz ucznia" }).min(1, "Wybierz ucznia"),
   recurrence: z.enum(["none", "weekly", "biweekly"]),

@@ -42,43 +42,43 @@ export const getInitials = (firstName: string, lastName: string): string => {
 // * Paleta kolorów dla kart uczniów
 export const STUDENT_COLORS = [
   {
-    glow: "bg-blue-500/10",
+    glow: "bg-blue-500/15",
     solid: "bg-blue-500",
     hoverBorder: "hover:border-blue-500/40",
     hoverBg: "hover:bg-blue-500/10",
   },
   {
-    glow: "bg-emerald-500/10",
+    glow: "bg-emerald-500/15",
     solid: "bg-emerald-500",
     hoverBorder: "hover:border-emerald-500/40",
     hoverBg: "hover:bg-emerald-500/10",
   },
   {
-    glow: "bg-violet-500/10",
+    glow: "bg-violet-500/15",
     solid: "bg-violet-500",
     hoverBorder: "hover:border-violet-500/40",
     hoverBg: "hover:bg-violet-500/10",
   },
   {
-    glow: "bg-rose-500/10",
+    glow: "bg-rose-500/15",
     solid: "bg-rose-500",
     hoverBorder: "hover:border-rose-500/40",
     hoverBg: "hover:bg-rose-500/10",
   },
   {
-    glow: "bg-amber-500/10",
+    glow: "bg-amber-500/15",
     solid: "bg-amber-500",
     hoverBorder: "hover:border-amber-500/40",
     hoverBg: "hover:bg-amber-500/10",
   },
   {
-    glow: "bg-fuchsia-500/10",
+    glow: "bg-fuchsia-500/15",
     solid: "bg-fuchsia-500",
     hoverBorder: "hover:border-fuchsia-500/40",
     hoverBg: "hover:bg-fuchsia-500/10",
   },
   {
-    glow: "bg-cyan-500/10",
+    glow: "bg-cyan-500/15",
     solid: "bg-cyan-500",
     hoverBorder: "hover:border-cyan-500/40",
     hoverBg: "hover:bg-cyan-500/10",
