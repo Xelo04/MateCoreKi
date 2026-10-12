@@ -3,7 +3,7 @@
 // ==========================================
 // Główny widok modułu zadań. Zawiera dwie sekcje:
 // 1. Zestawy zadań (z globalnymi filtrami, sortowaniem, działami, limitem 3 na start)
-// 2. Wszystkie zadania (smart search, checkboxy, legenda ikon, pasek trudności, limit 5 na start)
+// 2. Wszystkie zadania (smart search, checkboxy, legenda ikon, limit 5 na start)
 
 "use client";
 
@@ -14,7 +14,6 @@ import {
   Search,
   FolderOpen,
   FileText,
-  Filter,
   ChevronDown,
   ChevronUp,
   ArrowUpDown,
@@ -40,8 +39,16 @@ import { useStudentsList } from "@/features/students/hook";
 import { ExerciseSetCard } from "../components/ExerciseSetCard";
 import { ExerciseRow } from "../components/ExerciseRow";
 import { smartSearch } from "../utils";
-import { EXERCISE_DIFFICULTY_LABELS } from "../types";
-import type { ExerciseDifficulty } from "../types";
+import {
+  EXERCISE_DIFFICULTY_LABELS,
+  EXERCISE_MATH_LEVEL_LABELS,
+  EXERCISE_TYPE_LABELS,
+} from "../types";
+import type {
+  ExerciseDifficulty,
+  ExerciseMathLevel,
+  ExerciseType,
+} from "../types";
 
 // * Limity wyświetlania dla obu sekcji przed rozwinięciem
 const INITIAL_SETS_LIMIT = 3;
@@ -89,6 +96,8 @@ export function ExercisesView() {
   const [filterTag, setFilterTag] = useState<string>("all");
   const [filterHasPoints, setFilterHasPoints] = useState(false);
   const [filterHasSolution, setFilterHasSolution] = useState(false);
+  const [filterLevel, setFilterLevel] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
   const [showAllExercises, setShowAllExercises] = useState(false);
 
   const isLoading = exercisesLoading || setsLoading;
@@ -179,6 +188,14 @@ export function ExercisesView() {
       result = result.filter((e) => e.hasSolution);
     }
 
+    if (filterLevel !== "all") {
+      result = result.filter((e) => e.mathLevel === filterLevel);
+    }
+
+    if (filterType !== "all") {
+      result = result.filter((e) => e.exerciseType === filterType);
+    }
+
     // * Zadania zawsze sortujemy od najnowszego, żeby na samej górze były świeżo dodane
     return result.sort(
       (a, b) => b.lastModified.getTime() - a.lastModified.getTime(),
@@ -190,6 +207,8 @@ export function ExercisesView() {
     filterTag,
     filterHasPoints,
     filterHasSolution,
+    filterLevel,
+    filterType,
   ]);
 
   const visibleExercises = showAllExercises
@@ -201,25 +220,27 @@ export function ExercisesView() {
     filterDifficulty !== "all" ||
     filterTag !== "all" ||
     filterHasPoints ||
+    filterLevel !== "all" ||
+    filterType !== "all" ||
     filterHasSolution;
 
   // ==========================================
   // HANDLERY AKCJI
   // ==========================================
   const handleNewSet = useCallback(() => {
-    toast.info("Modal dodawania zestawu — wkrótce");
+    toast.info("Modal dodawania zestawu - wkrótce");
   }, []);
 
   const handleNewExercise = useCallback(() => {
-    toast.info("Modal dodawania zadania — wkrótce");
+    toast.info("Modal dodawania zadania - wkrótce");
   }, []);
 
   const handleEditSet = useCallback(() => {
-    toast.info("Modal edycji zestawu — wkrótce");
+    toast.info("Modal edycji zestawu - wkrótce");
   }, []);
 
   const handleEditExercise = useCallback(() => {
-    toast.info("Modal edycji zadania — wkrótce");
+    toast.info("Modal edycji zadania - wkrótce");
   }, []);
 
   const handleDuplicateSet = useCallback(
@@ -230,7 +251,7 @@ export function ExercisesView() {
   );
 
   const handleAssignSet = useCallback(() => {
-    toast.info("Formularz przypisywania pracy domowej — wkrótce");
+    toast.info("Formularz przypisywania pracy domowej - wkrótce");
   }, []);
 
   const handleDeleteSet = useCallback(
@@ -473,10 +494,10 @@ export function ExercisesView() {
           </Button>
         </div>
 
-        {/* * Pasek filtrów: smart search + dropdowny + checkboxy */}
+        {/* * Pasek filtrów: smart search + dropdowny w 2 rzędach + checkboxy */}
         <div className="flex flex-col gap-4 w-full">
-          {/* ----- Rząd 1: Wyszukiwarka + Filtry dropdownowe ----- */}
-          <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-3 w-full">
+          {/* ----- Rząd 1: Wyszukiwarka + Główne filtry ----- */}
+          <div className="flex flex-col lg:flex-row items-stretch gap-3 w-full">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -487,17 +508,16 @@ export function ExercisesView() {
               />
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch gap-3 shrink-0">
+            <div className="flex flex-col sm:flex-row gap-3 lg:shrink-0">
               <Select
                 value={filterDifficulty}
                 onValueChange={setFilterDifficulty}
               >
-                <SelectTrigger className="h-11 w-full sm:w-56 bg-card rounded-xl">
-                  <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                <SelectTrigger className="h-11 w-full sm:w-48 bg-card rounded-xl">
                   <SelectValue placeholder="Trudność" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Wszystkie poziomy</SelectItem>
+                  <SelectItem value="all">Dowolna trudność</SelectItem>
                   {(
                     Object.entries(EXERCISE_DIFFICULTY_LABELS) as [
                       ExerciseDifficulty,
@@ -527,9 +547,49 @@ export function ExercisesView() {
             </div>
           </div>
 
-          {/* ----- Rząd 2: Checkboxy filtrów oraz Legenda Ikon ----- */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/30 pb-3">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          {/* ----- Rząd 2: Dodatkowe filtry (Poziom, Typ) oraz Checkboxy ----- */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-border/30 pb-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Select value={filterLevel} onValueChange={setFilterLevel}>
+                <SelectTrigger className="h-11 w-full sm:w-48 bg-card rounded-xl">
+                  <SelectValue placeholder="Poziom edukacji" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Wszystkie poziomy</SelectItem>
+                  {(
+                    Object.entries(EXERCISE_MATH_LEVEL_LABELS) as [
+                      ExerciseMathLevel,
+                      string,
+                    ][]
+                  ).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="h-11 w-full sm:w-56 bg-card rounded-xl">
+                  <SelectValue placeholder="Typ zadania" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Wszystkie typy</SelectItem>
+                  {(
+                    Object.entries(EXERCISE_TYPE_LABELS) as [
+                      ExerciseType,
+                      string,
+                    ][]
+                  ).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-1 lg:shrink-0">
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="filter-has-points"
@@ -562,33 +622,59 @@ export function ExercisesView() {
                 </Label>
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <ImageIcon className="h-3.5 w-3.5 text-foreground/70" />
-                Zawiera zdjęcia
+          {/* ----- Rząd 3: Legenda Ikon i Statusów ----- */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-muted-foreground mt-1 mb-2">
+            {/* Trudność (Paski) */}
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-1 rounded-full bg-emerald-500" />
+              Łatwe
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-1 rounded-full bg-amber-500" />
+              Średnie
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3 w-1 rounded-full bg-destructive" />
+              Trudne
+            </span>
+
+            {/* Typ zadania */}
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block px-1.5 py-0.5 rounded-md border text-[9px] font-bold bg-indigo-500/10 text-indigo-600 border-indigo-500/20">
+                Typ
               </span>
-              <span className="flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5 text-foreground/70" />
-                Zawiera pliki PDF
+              Typ zadania
+            </span>
+
+            {/* Oznaczenia specjalne zadań */}
+            <span className="flex items-center gap-1.5">
+              <span className="inline-flex items-center justify-center h-4 w-4 rounded border text-[9px] font-bold bg-sky-500/10 text-sky-600 border-sky-500/20">
+                P
               </span>
-              <span className="flex items-center gap-1.5">
-                <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-                Posiada rozwiązanie
+              Podstawa
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-flex items-center justify-center h-4 w-4 rounded border text-[9px] font-bold bg-violet-500/10 text-violet-600 border-violet-500/20">
+                R
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-1 rounded-full bg-emerald-500" />
-                Łatwe
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-1 rounded-full bg-amber-500" />
-                Średnie
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-1 rounded-full bg-destructive" />
-                Trudne
-              </span>
-            </div>
+              Rozszerzenie
+            </span>
+
+            {/* Ikony wierszy */}
+            <span className="flex items-center gap-1.5">
+              <ImageIcon className="h-3.5 w-3.5 text-foreground/70" />
+              Zawiera zdjęcia
+            </span>
+            <span className="flex items-center gap-1.5">
+              <FileText className="h-3.5 w-3.5 text-foreground/70" />
+              Zawiera pliki PDF
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+              Posiada rozwiązanie
+            </span>
           </div>
         </div>
 

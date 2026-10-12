@@ -3,8 +3,8 @@
 // ==========================================
 // Wiersz z kolorowym obramowaniem trudności po lewej, tytułem, podglądem
 // treści tekstowej, tagami, punktacją i ikonami formatów (zdjęcia, PDF, rozwiązanie).
-// * Desktop (sm+): tytuł+treść po lewej, meta po prawej — w jednej linii.
-// * Mobile: układ pionowy; tytuł (1-2 linie) → treść → tagi → meta z równymi odstępami dla KAŻDEJ ikony.
+// * Desktop (sm+): tytuł+treść po lewej, meta po prawej - w jednej linii.
+// * Mobile: układ pionowy; tytuł (1-2 linie) → treść → tagi → meta z równymi odstępami.
 
 "use client";
 
@@ -25,6 +25,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { ExerciseListItem } from "../types";
+import {
+  getMathLevelShort,
+  getMathLevelStyle,
+  getMathLevelLabel,
+  getExerciseTypeLabel,
+  getExerciseTypeStyle,
+} from "../utils";
 
 interface ExerciseRowProps {
   readonly exercise: ExerciseListItem;
@@ -37,7 +44,7 @@ export function ExerciseRow({ exercise, onEdit, onDelete }: ExerciseRowProps) {
     <div
       className={cn(
         "flex items-stretch rounded-xl border border-border/40 bg-card overflow-hidden transition-colors hover:bg-muted/20 group",
-        // * Pasek trudności jako lewe obramowanie, które idealnie dopasowuje się do krawędzi i zaokrągleń karty
+        // * Pasek trudności jako lewe obramowanie, idealnie dopasowane do krawędzi
         exercise.difficulty === "easy" && "border-l-4 border-l-emerald-500",
         exercise.difficulty === "medium" && "border-l-4 border-l-amber-500",
         exercise.difficulty === "hard" && "border-l-4 border-l-destructive",
@@ -63,48 +70,68 @@ export function ExerciseRow({ exercise, onEdit, onDelete }: ExerciseRowProps) {
         </div>
 
         {/* ========================================== */}
-        {/* BLOK 3: Tagi                               */}
+        {/* BLOK 3: Typ i Tagi                         */}
         {/* ========================================== */}
-        {exercise.tags.length > 0 && (
-          <div className="flex items-center gap-1 flex-wrap sm:flex-nowrap sm:shrink-0 mt-2 sm:mt-0">
-            {/* * Na mobile pokazujemy wszystkie tagi, na desktopie max 2 */}
-            {exercise.tags.map((tag, index) => (
-              <span
-                key={tag.id}
-                className={cn(
-                  "inline-flex items-center rounded-full bg-white border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-foreground/80 shadow-sm whitespace-nowrap",
-                  // * Na desktopie chowamy tagi powyżej indeksu 1
-                  index >= 2 && "sm:hidden",
-                )}
-              >
-                {tag.name}
-              </span>
-            ))}
-            {/* * Licznik +N widoczny tylko na desktopie gdy jest > 2 tagów */}
-            {exercise.tags.length > 2 && (
-              <span className="hidden sm:inline text-[10px] text-muted-foreground font-medium">
-                +{exercise.tags.length - 2}
-              </span>
+        {/* * Ponieważ exerciseType jest obowiązkowe, ten blok wyświetli się zawsze */}
+        <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap sm:shrink-0 mt-2 sm:mt-0">
+          {/* Tagi */}
+          {exercise.tags.map((tag, index) => (
+            <span
+              key={tag.id}
+              className={cn(
+                "inline-flex items-center rounded-full bg-white border border-border/60 px-2 py-0.5 text-[10px] font-semibold text-foreground/80 shadow-sm whitespace-nowrap",
+                index >= 2 && "sm:hidden",
+              )}
+            >
+              {tag.name}
+            </span>
+          ))}
+          {exercise.tags.length > 2 && (
+            <span className="hidden sm:inline text-[10px] text-muted-foreground font-medium">
+              +{exercise.tags.length - 2}
+            </span>
+          )}
+
+          {/* Typ zadania - ładny wyróżniający się pill */}
+          <span
+            className={cn(
+              "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold shadow-sm whitespace-nowrap",
+              getExerciseTypeStyle(),
             )}
-          </div>
-        )}
+          >
+            {getExerciseTypeLabel(exercise.exerciseType)}
+          </span>
+        </div>
 
         {/* ========================================== */}
-        {/* BLOK 4: Punkty, każda ikona i menu          */}
+        {/* BLOK 4: Punkty, Poziom (P/R), Ikony, Menu  */}
         {/* ========================================== */}
-        {/* * Mobile: justify-between rozciąga każdy element osobno. Desktop: elementy naturalnie przylegają do prawej */}
-        <div className="flex items-center justify-between sm:justify-start sm:shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+        {/* * W pełni elastyczny kontener. Na mobile justify-between dla równych odstępów, na desktopie gap-3. */}
+        <div className="flex items-center justify-between sm:justify-end sm:shrink-0 w-full sm:w-auto mt-3 sm:mt-0 gap-1 sm:gap-3">
           {/* ----- Punkty ----- */}
           {exercise.points !== null ? (
-            <span className="inline-flex items-center text-xs font-bold text-muted-foreground tabular-nums whitespace-nowrap sm:mr-4">
+            <span className="inline-flex items-center text-xs font-bold text-muted-foreground tabular-nums whitespace-nowrap">
               {exercise.points} pkt
             </span>
           ) : (
-            <span className="sm:hidden" /> // Pusty placeholder, by justify-between utrzymało równe odległości
+            <span className="sm:hidden" /> // Podtrzymuje flex-layout na mobile
           )}
 
-          {/* ----- Poszczególne Ikony ----- */}
-          <span title="Zdjęcia" className="flex justify-center sm:mr-3">
+          {/* ----- Poziom (Kółeczko P/R) ----- */}
+          {exercise.mathLevel && (
+            <span
+              className={cn(
+                "flex items-center justify-center h-5 w-5 rounded border text-[10px] font-bold shadow-sm shrink-0",
+                getMathLevelStyle(exercise.mathLevel),
+              )}
+              title={getMathLevelLabel(exercise.mathLevel)}
+            >
+              {getMathLevelShort(exercise.mathLevel)}
+            </span>
+          )}
+
+          {/* ----- Ikony Formatów ----- */}
+          <span title="Zdjęcia" className="flex justify-center">
             <ImageIcon
               className={cn(
                 "h-4 w-4 transition-colors",
@@ -114,7 +141,7 @@ export function ExerciseRow({ exercise, onEdit, onDelete }: ExerciseRowProps) {
               )}
             />
           </span>
-          <span title="Pliki PDF" className="flex justify-center sm:mr-3">
+          <span title="Pliki PDF" className="flex justify-center">
             <FileText
               className={cn(
                 "h-4 w-4 transition-colors",
@@ -124,7 +151,7 @@ export function ExerciseRow({ exercise, onEdit, onDelete }: ExerciseRowProps) {
               )}
             />
           </span>
-          <span title="Rozwiązanie" className="flex justify-center sm:mr-3">
+          <span title="Rozwiązanie" className="flex justify-center">
             <Lightbulb
               className={cn(
                 "h-4 w-4 transition-colors",
@@ -135,7 +162,7 @@ export function ExerciseRow({ exercise, onEdit, onDelete }: ExerciseRowProps) {
             />
           </span>
 
-          {/* ----- Menu (trzy kropki) ----- */}
+          {/* ----- Menu ----- */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

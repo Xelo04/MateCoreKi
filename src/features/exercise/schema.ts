@@ -39,6 +39,20 @@ export const exerciseFormSchema = z
     // * Stopień trudności - opcjonalny
     difficulty: z.enum(["easy", "medium", "hard"]).nullable().default(null),
 
+    // * Poziom edukacji matematycznej - opcjonalny
+    mathLevel: z.enum(["basic", "extended"]).nullable().default(null),
+
+    // * Typ zadania - wymagany
+    exerciseType: z.enum([
+      "open",
+      "closed",
+      "true_false",
+      "multiple",
+      "fill",
+      "proof",
+      "other",
+    ]),
+
     // * Punktacja - opcjonalna, liczba całkowita >= 0
     points: z
       .number({ message: "Podaj liczbę całkowitą" })

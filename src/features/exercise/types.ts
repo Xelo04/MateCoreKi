@@ -10,6 +10,19 @@
 // * Stopień trudności zadania (3 poziomy)
 export type ExerciseDifficulty = "easy" | "medium" | "hard";
 
+// * Poziom edukacji matematycznej
+export type ExerciseMathLevel = "basic" | "extended";
+
+// * Typ zadania - wymagany
+export type ExerciseType =
+  | "open" // Otwarte
+  | "closed" // Zamknięte
+  | "true_false" // Prawda/Fałsz
+  | "multiple" // Wielokrotnego wyboru
+  | "fill" // Z luką
+  | "proof" // Na dowodzenie
+  | "other"; // Inne
+
 // ==========================================
 // TAGI
 // ==========================================
@@ -41,6 +54,8 @@ export interface ApiExercise {
   description: string | null;
   difficulty: ExerciseDifficulty | null;
   points: number | null; // * Liczba całkowita, null = nieoceniane
+  math_level: ExerciseMathLevel | null;
+  exercise_type: ExerciseType;
   last_modified: string;
 }
 
@@ -84,6 +99,8 @@ export interface Exercise {
   description: string | null;
   difficulty: ExerciseDifficulty | null;
   points: number | null;
+  mathLevel: ExerciseMathLevel | null;
+  exerciseType: ExerciseType;
   lastModified: Date;
 }
 
@@ -125,6 +142,8 @@ export interface ExerciseListItem {
   tags: Tag[];
   difficulty: ExerciseDifficulty | null;
   points: number | null;
+  mathLevel: ExerciseMathLevel | null;
+  exerciseType: ExerciseType;
   // * Ile zestawów zawiera to zadanie (informacja dla nauczyciela przy edycji)
   setCount: number;
   // * Flagi obecności poszczególnych formatów treści
@@ -150,4 +169,19 @@ export const EXERCISE_DIFFICULTY_LABELS: Record<ExerciseDifficulty, string> = {
   easy: "Łatwy",
   medium: "Średni",
   hard: "Trudny",
+};
+
+export const EXERCISE_MATH_LEVEL_LABELS: Record<ExerciseMathLevel, string> = {
+  basic: "Podstawa",
+  extended: "Rozszerzenie",
+};
+
+export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
+  open: "Otwarte",
+  closed: "Zamknięte",
+  true_false: "Prawda / Fałsz",
+  multiple: "Wielokrotny wybór",
+  fill: "Z luką",
+  proof: "Dowód",
+  other: "Inne",
 };

@@ -57,6 +57,8 @@ let mockExercises: ApiExercise[] = [
     description: null,
     difficulty: "easy",
     points: 2,
+    math_level: "basic",
+    exercise_type: "open",
     last_modified: "2025-06-10T10:00:00Z",
   },
   // EDGE CASE: Brak tagów, brak punktów, brak trudności, brak rozwiązania
@@ -74,6 +76,8 @@ let mockExercises: ApiExercise[] = [
     description: null,
     difficulty: null,
     points: null,
+    math_level: "basic",
+    exercise_type: "closed",
     last_modified: "2025-06-11T14:30:00Z",
   },
   {
@@ -90,12 +94,14 @@ let mockExercises: ApiExercise[] = [
     description: null,
     difficulty: "hard",
     points: 5,
+    math_level: "extended",
+    exercise_type: "proof",
     last_modified: "2025-06-12T09:15:00Z",
   },
   // EDGE CASE: Tylko zdjęcie, brak tekstu
   {
     id: "ex-4",
-    title: "Geometria — pole trapezu ze zdjęcia",
+    title: "Geometria - pole trapezu ze zdjęcia",
     content_text: null,
     content_images_urls: ["https://example.com/trapez.png"],
     content_files_urls: [],
@@ -106,12 +112,14 @@ let mockExercises: ApiExercise[] = [
     description: "Zadanie ze zdjęcia z podręcznika",
     difficulty: "medium",
     points: 3,
+    math_level: "basic",
+    exercise_type: "closed",
     last_modified: "2025-06-13T11:00:00Z",
   },
   // EDGE CASE: PDF jako treść i rozwiązanie
   {
     id: "ex-5",
-    title: "Funkcja kwadratowa — wyznaczanie wierzchołka paraboli",
+    title: "Funkcja kwadratowa - wyznaczanie wierzchołka paraboli",
     content_text:
       "Dana jest funkcja kwadratowa f(x) = 2x² - 8x + 6. Wyznacz współrzędne wierzchołka paraboli i naszkicuj wykres.",
     content_images_urls: [],
@@ -123,12 +131,14 @@ let mockExercises: ApiExercise[] = [
     description: null,
     difficulty: "medium",
     points: 4,
+    math_level: "extended",
+    exercise_type: "open",
     last_modified: "2025-06-14T08:00:00Z",
   },
   // EDGE CASE: Brak treści tekstowej, same zdjęcia, brak rozwiązania
   {
     id: "ex-6",
-    title: "Ciąg arytmetyczny — zadanie maturalne",
+    title: "Ciąg arytmetyczny - zadanie maturalne",
     content_text: null,
     content_images_urls: [
       "https://example.com/ciag-zad.png",
@@ -142,6 +152,8 @@ let mockExercises: ApiExercise[] = [
     description: null,
     difficulty: "hard",
     points: null,
+    math_level: "extended",
+    exercise_type: "multiple",
     last_modified: "2025-06-15T16:00:00Z",
   },
 ];
@@ -153,7 +165,7 @@ let mockExercises: ApiExercise[] = [
 let mockExerciseSets: ApiExerciseSet[] = [
   {
     id: "set-1",
-    name: "Sprawdzian — równania i nierówności",
+    name: "Sprawdzian - równania i nierówności",
     description: "Sprawdzian dla klasy 2 LO",
     exercise_ids: ["ex-1"],
     student_id: null,
@@ -161,7 +173,7 @@ let mockExerciseSets: ApiExerciseSet[] = [
   },
   {
     id: "set-2",
-    name: "Powtórka przed maturą — funkcje i analiza matematyczna rozszerzenie",
+    name: "Powtórka przed maturą - funkcje i analiza matematyczna rozszerzenie",
     description: "Zestaw z zadaniami z najtrudniejszych arkuszy",
     exercise_ids: ["ex-3", "ex-1", "ex-5"],
     student_id: "uuid-1",
@@ -240,6 +252,8 @@ export const mapExerciseFromApi = (api: ApiExercise): Exercise => ({
   description: api.description,
   difficulty: api.difficulty,
   points: api.points,
+  mathLevel: api.math_level,
+  exerciseType: api.exercise_type,
   lastModified: new Date(api.last_modified),
 });
 
@@ -265,6 +279,8 @@ const mapExerciseFormToApiPayload = (
   tag_ids: form.tagIds,
   description: form.description?.trim() || null,
   difficulty: form.difficulty,
+  math_level: form.mathLevel,
+  exercise_type: form.exerciseType,
   points: form.points,
 });
 
@@ -330,6 +346,8 @@ export const ExerciseService = {
       tags: resolveTags(ex.tag_ids),
       difficulty: ex.difficulty,
       points: ex.points,
+      mathLevel: ex.math_level,
+      exerciseType: ex.exercise_type,
       setCount: countSetsForExercise(ex.id),
       hasText: !!ex.content_text && ex.content_text.trim().length > 0,
       hasImages: ex.content_images_urls.length > 0,
@@ -493,7 +511,7 @@ export const ExerciseService = {
   },
 
   // ----- Usuwanie zestawu -----
-  // * Nie usuwa zadań — tylko sam zestaw
+  // * Nie usuwa zadań - tylko sam zestaw
   // TODO: [BACKEND] DELETE /api/v1/exercises/sets/:id
   async deleteExerciseSet(id: string): Promise<void> {
     await delay(400);

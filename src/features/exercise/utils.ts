@@ -31,8 +31,18 @@ import {
   Cuboid,
   type LucideIcon,
 } from "lucide-react";
-import type { ExerciseDifficulty, Tag, ExerciseSet } from "./types";
-import { EXERCISE_DIFFICULTY_LABELS } from "./types";
+import type {
+  ExerciseDifficulty,
+  ExerciseMathLevel,
+  ExerciseType,
+  Tag,
+  ExerciseSet,
+} from "./types";
+import {
+  EXERCISE_DIFFICULTY_LABELS,
+  EXERCISE_MATH_LEVEL_LABELS,
+  EXERCISE_TYPE_LABELS,
+} from "./types";
 
 // ==========================================
 // TRUDNOŚĆ: Kolory i etykiety
@@ -86,12 +96,38 @@ export const getDifficultyStyle = (
   return DIFFICULTY_STYLES[difficulty];
 };
 
-// * Zwraca kolor paska bocznego wiersza dla danej trudności (lub szary jeśli brak)
-export const getDifficultyBarColor = (
-  difficulty: ExerciseDifficulty | null,
-): string => {
-  if (!difficulty) return "bg-muted-foreground/30";
-  return DIFFICULTY_BAR_COLORS[difficulty];
+// ==========================================
+// POZIOM EDUKACJI (Podstawa / Rozszerzenie)
+// ==========================================
+
+export const getMathLevelLabel = (level: ExerciseMathLevel | null): string => {
+  if (!level) return "";
+  return EXERCISE_MATH_LEVEL_LABELS[level];
+};
+
+export const getMathLevelShort = (level: ExerciseMathLevel | null): string => {
+  if (level === "basic") return "P";
+  if (level === "extended") return "R";
+  return "";
+};
+
+export const getMathLevelStyle = (level: ExerciseMathLevel | null): string => {
+  if (level === "basic") return "bg-sky-500/10 text-sky-600 border-sky-500/20";
+  if (level === "extended")
+    return "bg-violet-500/10 text-violet-600 border-violet-500/20";
+  return "hidden";
+};
+
+// ==========================================
+// TYP ZADANIA
+// ==========================================
+
+export const getExerciseTypeLabel = (type: ExerciseType): string => {
+  return EXERCISE_TYPE_LABELS[type];
+};
+
+export const getExerciseTypeStyle = (): string => {
+  return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20";
 };
 
 // ==========================================
@@ -203,15 +239,15 @@ const tokenize = (text: string): string[] =>
     .filter((word) => word.length > 0);
 
 // * Sprawdza czy jedno słowo z zapytania matchuje jakiekolwiek słowo w tekście
-// * Dla krótkich zapytań (<=4 znaki) — prosty prefix match
-// * Dla dłuższych — wspólny prefix musi mieć >= 80% długości zapytania
+// * Dla krótkich zapytań (<=4 znaki) - prosty prefix match
+// * Dla dłuższych - wspólny prefix musi mieć >= 80% długości zapytania
 const wordMatches = (queryWord: string, textWord: string): boolean => {
-  // * Krótkie zapytania (1-4 znaki) — klasyczny prefix match
+  // * Krótkie zapytania (1-4 znaki) - klasyczny prefix match
   if (queryWord.length <= 4) {
     return textWord.startsWith(queryWord);
   }
 
-  // * Dłuższe zapytania — wymagamy wspólnego prefixu o długości >= 80% zapytania
+  // * Dłuższe zapytania - wymagamy wspólnego prefixu o długości >= 80% zapytania
   const minPrefixLength = Math.ceil(queryWord.length * 0.8);
   const maxComparable = Math.min(queryWord.length, textWord.length);
 
@@ -231,7 +267,7 @@ const wordMatches = (queryWord: string, textWord: string): boolean => {
   return commonPrefix >= minPrefixLength;
 };
 
-// * Główna funkcja smart search — sprawdza czy WSZYSTKIE słowa zapytania
+// * Główna funkcja smart search - sprawdza czy WSZYSTKIE słowa zapytania
 // * matchują w podanych tekstach (AND logic: każde słowo musi trafić gdzieś)
 export const smartSearch = (
   query: string,
@@ -239,7 +275,7 @@ export const smartSearch = (
 ): boolean => {
   const queryWords = tokenize(query);
 
-  // * Puste zapytanie — matchuje wszystko
+  // * Puste zapytanie - matchuje wszystko
   if (queryWords.length === 0) return true;
 
   // * Łączymy wszystkie przeszukiwane teksty w jeden zbiór słów
