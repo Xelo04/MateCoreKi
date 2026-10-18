@@ -35,13 +35,16 @@ import type {
   ExerciseDifficulty,
   ExerciseMathLevel,
   ExerciseType,
+  ExerciseSourceType,
   Tag,
-  ExerciseSet,
+  Category,
+  CategoryNode,
 } from "./types";
 import {
   EXERCISE_DIFFICULTY_LABELS,
   EXERCISE_MATH_LEVEL_LABELS,
   EXERCISE_TYPE_LABELS,
+  EXERCISE_SOURCE_TYPE_LABELS,
 } from "./types";
 
 // ==========================================
@@ -69,13 +72,6 @@ export const DIFFICULTY_STYLES: Record<
   },
 };
 
-// * Kolor paska bocznego karty na podstawie poziomu trudności
-export const DIFFICULTY_BAR_COLORS: Record<ExerciseDifficulty, string> = {
-  easy: "bg-emerald-500",
-  medium: "bg-amber-500",
-  hard: "bg-destructive",
-};
-
 export const getDifficultyLabel = (
   difficulty: ExerciseDifficulty | null,
 ): string => {
@@ -97,7 +93,7 @@ export const getDifficultyStyle = (
 };
 
 // ==========================================
-// POZIOM EDUKACJI (Podstawa / Rozszerzenie)
+// POZIOM EDUKACJI (Szkoła / Matura)
 // ==========================================
 
 export const getMathLevelLabel = (level: ExerciseMathLevel | null): string => {
@@ -106,15 +102,23 @@ export const getMathLevelLabel = (level: ExerciseMathLevel | null): string => {
 };
 
 export const getMathLevelShort = (level: ExerciseMathLevel | null): string => {
-  if (level === "basic") return "P";
-  if (level === "extended") return "R";
+  if (level === "primary_1_3") return "SP 1-3";
+  if (level === "primary_4_8") return "SP 4-8";
+  if (level === "highschool_basic") return "Matura P.";
+  if (level === "highschool_extended") return "Matura R.";
   return "";
 };
 
+// Zmieniamy styl na standardową pigułkę z tłem, analogiczną do Typu Zadania
 export const getMathLevelStyle = (level: ExerciseMathLevel | null): string => {
-  if (level === "basic") return "bg-sky-500/10 text-sky-600 border-sky-500/20";
-  if (level === "extended")
-    return "bg-violet-500/10 text-violet-600 border-violet-500/20";
+  if (level === "primary_1_3")
+    return "bg-emerald-500/10 text-emerald-700 border-emerald-500/20";
+  if (level === "primary_4_8")
+    return "bg-teal-500/10 text-teal-700 border-teal-500/20";
+  if (level === "highschool_basic")
+    return "bg-sky-500/10 text-sky-700 border-sky-500/20";
+  if (level === "highschool_extended")
+    return "bg-violet-500/10 text-violet-700 border-violet-500/20";
   return "hidden";
 };
 
@@ -131,11 +135,27 @@ export const getExerciseTypeStyle = (): string => {
 };
 
 // ==========================================
+// ŹRÓDŁO ZADANIA
+// ==========================================
+
+export const getSourceTypeLabel = (source: ExerciseSourceType): string => {
+  return EXERCISE_SOURCE_TYPE_LABELS[source];
+};
+
+export const getSourceTypeStyle = (source: ExerciseSourceType): string => {
+  if (source === "cke")
+    return "bg-rose-500/10 text-rose-600 border-rose-500/20";
+  if (source === "tutor")
+    return "bg-blue-500/10 text-blue-600 border-blue-500/20";
+  if (source === "generated")
+    return "bg-purple-500/10 text-purple-600 border-purple-500/20";
+  return "";
+};
+
+// ==========================================
 // JĘZYK POLSKI: Odmiana słów
 // ==========================================
 
-// * Poprawna odmiana słowa "zadanie" w zależności od liczby
-// * Przykłady: 1 zadanie, 2 zadania, 5 zadań, 12 zadań, 22 zadania
 export const formatExerciseCount = (count: number): string => {
   if (count === 1) return `${count} zadanie`;
 
@@ -154,20 +174,18 @@ export const formatExerciseCount = (count: number): string => {
 };
 
 // ==========================================
-// TAGI
+// TAGI / KATEGORIE
 // ==========================================
 
 export const formatTagNames = (tags: Tag[]): string =>
   tags.map((t) => t.name).join(", ");
 
+export const formatCategoryNames = (categories: Category[]): string =>
+  categories.map((c) => c.name).join(", ");
+
 // ==========================================
 // ZESTAWY: Obliczenia
 // ==========================================
-
-export const countSetsForExercise = (
-  exerciseId: string,
-  sets: readonly ExerciseSet[],
-): number => sets.filter((s) => s.exerciseIds.includes(exerciseId)).length;
 
 export const getPreviewTags = (allTags: Tag[][], limit = 3): Tag[] => {
   const seen = new Set<string>();
@@ -185,33 +203,10 @@ export const getPreviewTags = (allTags: Tag[][], limit = 3): Tag[] => {
   return result;
 };
 
-export const getContentFormatsLabel = (
-  hasText: boolean,
-  hasImages: boolean,
-  hasFiles: boolean,
-): string => {
-  const formats: string[] = [];
-  if (hasText) formats.push("Tekst");
-  if (hasImages) formats.push("Zdjęcia");
-  if (hasFiles) formats.push("Pliki");
-  return formats.length > 0 ? formats.join(", ") : "Brak treści";
-};
-
 // ==========================================
 // SMART SEARCH: Wyszukiwanie z morfologią polską
 // ==========================================
-// * Algorytm przeszukuje tytuł, treść tekstową i nazwy tagów.
-// * Normalizuje polskie znaki diakrytyczne (ą→a, ś→s, itp.).
-// * Dla każdego słowa zapytania sprawdza, czy istnieje słowo w tekście,
-// * które ma wspólny prefix o długości >= 80% długości szukanego słowa.
-// *
-// * Przykłady:
-// *   "kwadratowa" → matchuje "kwadratową", "kwadratowe", "kwadratowej" ✅
-// *   "kwadratowa" → NIE matchuje "kwadrat" ❌ (za krótki prefix)
-// *   "funkcja" → matchuje "funkcje", "funkcji", "funkcją" ✅
-// *   "log" → matchuje "logarytm", "logiczny" ✅ (krótkie słowa = prefix match)
 
-// ----- Mapa normalizacji polskich znaków diakrytycznych -----
 const POLISH_CHAR_MAP: Record<string, string> = {
   ą: "a",
   ć: "c",
@@ -224,7 +219,6 @@ const POLISH_CHAR_MAP: Record<string, string> = {
   ż: "z",
 };
 
-// * Zamienia polskie znaki diakrytyczne na łacińskie odpowiedniki i konwertuje na lowercase
 const normalizeText = (text: string): string =>
   text
     .toLowerCase()
@@ -232,29 +226,21 @@ const normalizeText = (text: string): string =>
     .map((char) => POLISH_CHAR_MAP[char] || char)
     .join("");
 
-// * Dzieli tekst na unikalne słowa po normalizacji
 const tokenize = (text: string): string[] =>
   normalizeText(text)
     .split(/\s+/)
     .filter((word) => word.length > 0);
 
-// * Sprawdza czy jedno słowo z zapytania matchuje jakiekolwiek słowo w tekście
-// * Dla krótkich zapytań (<=4 znaki) - prosty prefix match
-// * Dla dłuższych - wspólny prefix musi mieć >= 80% długości zapytania
 const wordMatches = (queryWord: string, textWord: string): boolean => {
-  // * Krótkie zapytania (1-4 znaki) - klasyczny prefix match
   if (queryWord.length <= 4) {
     return textWord.startsWith(queryWord);
   }
 
-  // * Dłuższe zapytania - wymagamy wspólnego prefixu o długości >= 80% zapytania
   const minPrefixLength = Math.ceil(queryWord.length * 0.8);
   const maxComparable = Math.min(queryWord.length, textWord.length);
 
-  // * Tekst jest za krótki, aby spełnić wymaganie prefixu
   if (maxComparable < minPrefixLength) return false;
 
-  // * Porównujemy prefix znak po znaku
   let commonPrefix = 0;
   for (let i = 0; i < maxComparable; i++) {
     if (queryWord[i] === textWord[i]) {
@@ -267,18 +253,13 @@ const wordMatches = (queryWord: string, textWord: string): boolean => {
   return commonPrefix >= minPrefixLength;
 };
 
-// * Główna funkcja smart search - sprawdza czy WSZYSTKIE słowa zapytania
-// * matchują w podanych tekstach (AND logic: każde słowo musi trafić gdzieś)
 export const smartSearch = (
   query: string,
   searchableTexts: (string | null | undefined)[],
 ): boolean => {
   const queryWords = tokenize(query);
-
-  // * Puste zapytanie - matchuje wszystko
   if (queryWords.length === 0) return true;
 
-  // * Łączymy wszystkie przeszukiwane teksty w jeden zbiór słów
   const allTextWords: string[] = [];
   for (const text of searchableTexts) {
     if (text) {
@@ -286,7 +267,6 @@ export const smartSearch = (
     }
   }
 
-  // * Każde słowo zapytania musi mieć match w przynajmniej jednym słowie tekstu
   return queryWords.every((qWord) =>
     allTextWords.some((tWord) => wordMatches(qWord, tWord)),
   );
@@ -296,8 +276,6 @@ export const smartSearch = (
 // WIZUALIZACJE ZESTAWÓW (Kafelki) - Baza 50 motywów
 // ==========================================
 
-// * Rozszerzone o dynamiczne klasy hoverBg, aby przyciski akcji
-// * w kartach idealnie adoptowały kolor motywu przy najechaniu.
 const COLOR_PALETTES = [
   {
     glow: "bg-blue-500/15",
@@ -389,17 +367,65 @@ const ICONS: LucideIcon[] = [
   Cuboid,
 ];
 
-// * Generuje 50 stabilnych kombinacji (ikona + paleta)
 export const EXERCISE_SET_VISUALS = Array.from({ length: 50 }, (_, i) => {
   const icon = ICONS[i % ICONS.length];
   const palette = COLOR_PALETTES[i % COLOR_PALETTES.length];
   return { icon, ...palette };
 });
 
-// * Zwraca konsekwentny wizualnie motyw na podstawie ID zestawu
 export const getSetVisuals = (setId: string) => {
   const hash = setId
     .split("")
     .reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return EXERCISE_SET_VISUALS[hash % EXERCISE_SET_VISUALS.length];
+};
+
+// ==========================================
+// KATEGORIE
+// ==========================================
+
+// * Spłaszcza drzewo kategorii do jednowymiarowej tablicy na potrzeby dropdownu Select.
+// * Dodaje informację o "depth" (głębokości) by wygenerować wcięcia w UI.
+export const flattenCategoryTree = (
+  nodes: CategoryNode[],
+  depth = 0,
+): { cat: CategoryNode; depth: number }[] => {
+  let flat: { cat: CategoryNode; depth: number }[] = [];
+  for (const node of nodes) {
+    flat.push({ cat: node, depth });
+    if (node.children.length > 0) {
+      flat = flat.concat(flattenCategoryTree(node.children, depth + 1));
+    }
+  }
+  return flat;
+};
+
+// * Pobiera ID wybranej kategorii ORAZ wszystkich jej dzieci (rekurencyjnie)
+export const getValidCategoryIds = (
+  tree: CategoryNode[],
+  selectedId: string,
+): Set<string> => {
+  if (selectedId === "all") return new Set();
+
+  const findNode = (nodes: CategoryNode[], id: string): CategoryNode | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      const found = findNode(node.children, id);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const targetNode = findNode(tree, selectedId);
+  if (!targetNode) return new Set([selectedId]);
+
+  const collectIds = (node: CategoryNode): string[] => {
+    let ids = [node.id];
+    node.children.forEach((child) => {
+      ids = ids.concat(collectIds(child));
+    });
+    return ids;
+  };
+
+  return new Set(collectIds(targetNode));
 };

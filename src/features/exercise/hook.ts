@@ -16,6 +16,7 @@ import type {
   ExerciseSetListItem,
   ExerciseSetDetail,
   Tag,
+  CategoryNode,
 } from "./types";
 import type { ExerciseFormData, ExerciseSetFormData } from "./schema";
 
@@ -340,4 +341,36 @@ export function useTags() {
   }, []);
 
   return { tags, isLoading };
+}
+
+// ==========================================
+// HOOK: Drzewo kategorii (cache)
+// ==========================================
+// * Drzewo kategorii pobieramy raz i cache'ujemy - rzadko się zmienia.
+// * Używany w formularzach zadań do wyświetlania hierarchii kategorii.
+export function useCategoriesTree() {
+  const [tree, setTree] = useState<CategoryNode[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const isFetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (isFetchedRef.current) return;
+    isFetchedRef.current = true;
+
+    async function load() {
+      try {
+        const data = await ExerciseService.getCategoriesTree();
+        setTree(data);
+      } catch (err) {
+        console.error("Categories fetch error:", err);
+        toast.error("Nie udało się pobrać drzewa kategorii");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void load();
+  }, []);
+
+  return { tree, isLoading };
 }
