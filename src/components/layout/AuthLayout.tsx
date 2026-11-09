@@ -33,11 +33,16 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         />
 
         <div className="relative flex h-full flex-col justify-between p-12 text-white xl:p-16">
-          <span className="text-lg font-semibold tracking-tight">
-            MatCoreKi
-          </span>
+          <Image
+            src="/logo_white.png"
+            alt="Logo"
+            width={200}
+            height={60}
+            priority
+            className="w-50 h-auto object-contain"
+          />
 
-          <div className="max-w-lg space-y-6">
+          <div className="max-w space-y-6">
             <h1 className="text-4xl font-bold leading-[1.1] tracking-tight xl:text-5xl">
               Nowoczesne{" "}
               <span className="bg-linear-to-r from-white to-primary bg-clip-text text-transparent">
@@ -52,7 +57,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           </div>
 
           <div className="flex items-center justify-between text-xs text-slate-400">
-            <span>© {new Date().getFullYear()} MatCoreKi</span>
+            <span>© {new Date().getFullYear()} JukuSpace</span>
             <span>Wersja {packageJson.version}</span>
           </div>
         </div>

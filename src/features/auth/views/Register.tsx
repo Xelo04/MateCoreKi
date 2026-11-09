@@ -194,9 +194,14 @@ export function Register() {
         />
 
         <div className="relative z-10 flex items-center justify-between">
-          <span className="text-lg font-semibold tracking-tight">
-            MatCoreKi
-          </span>
+          <Image
+            src="/logo_white.png"
+            alt="Logo"
+            width={200}
+            height={60}
+            priority
+            className="w-50 h-auto object-contain"
+          />
         </div>
 
         <div className="relative z-10 flex flex-1 items-center justify-center my-8">
@@ -204,7 +209,7 @@ export function Register() {
         </div>
 
         <div className="relative z-10 flex items-center justify-between text-xs text-slate-400">
-          <span>© {new Date().getFullYear()} MatCoreKi</span>
+          <span>© {new Date().getFullYear()} JukuSpace</span>
           <span>Wersja {packageJson.version}</span>
         </div>
       </aside>

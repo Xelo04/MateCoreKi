@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // * Klucz ciasteczka - musi być spójny z implementacją w klasie TokenStorage
-const TOKEN_KEY = "matcoreki:auth:token";
+const TOKEN_KEY = "jukuspace:auth:token";
 
 // ----- Definicje zakresów tras -----
 
@@ -20,7 +20,7 @@ const PROTECTED_ROUTES = [
   "/board",
   "/calendar",
   "/students",
-  "/exercises",
+  "/exercise-database",
 ];
 
 export function proxy(request: NextRequest) {
@@ -68,7 +68,7 @@ export const config = {
     "/calendar/:path*",
     "/students",
     "/students/:path*",
-    "/exercises",
-    "/exercises/:path*",
+    "/exercise-database",
+    "/exercise-database/:path*",
   ],
 };

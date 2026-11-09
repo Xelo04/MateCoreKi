@@ -416,7 +416,7 @@ export function ExcalidrawBoard({ boardId, username }: ExcalidrawBoardProps) {
           <MainMenu.DefaultItems.ChangeCanvasBackground />
           <MainMenu.ItemCustom>
             <div className="text-xs text-muted-foreground opacity-50 px-2 pt-0 cursor-default pointer-events-none">
-              MatCoreKi
+              JukuSpace
             </div>
           </MainMenu.ItemCustom>
         </MainMenu>
@@ -426,7 +426,7 @@ export function ExcalidrawBoard({ boardId, username }: ExcalidrawBoardProps) {
           <WelcomeScreen.Center>
             <WelcomeScreen.Center.Heading>
               <span style={{ fontSize: "2.5rem" }}>
-                Tablica zajęć - MatCoreKi
+                Tablica zajęć - JukuSpace
               </span>
             </WelcomeScreen.Center.Heading>
             <WelcomeScreen.Center.Menu>

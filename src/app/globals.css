@@ -95,3 +95,52 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Klasa do animacji obramowania karty zestawu ćwiczeń przy najechaniu kursorem */
+.set-card-border {
+  border-color: color-mix(in srgb, var(--set-accent) 45%, transparent);
+  transition:
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.set-card-border:hover {
+  border-color: color-mix(in srgb, var(--set-accent) 75%, transparent);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--set-accent) 18%, transparent);
+}
+
+/* Klasy do podglądu przeciąganego zestawu w widoku listy zestawów ćwiczeń */
+.set-drag-preview {
+  position: fixed;
+  left: -10000px;
+  top: -10000px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 180px;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  overflow: hidden;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: none;
+  color: #18181b;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.set-drag-preview-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+  flex: 0 0 auto;
+}
+
+.set-drag-preview-name {
+  flex: 0 0 auto;
+  color: #18181b;
+  font-weight: 700;
+  white-space: nowrap;
+}

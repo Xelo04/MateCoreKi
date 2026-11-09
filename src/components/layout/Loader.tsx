@@ -53,7 +53,7 @@ export function Loader() {
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="space-y-1">
             <h2 className="text-lg font-bold tracking-tight text-foreground">
-              MatCoreKi
+              JukuSpace
             </h2>
             <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
               Ładowanie...

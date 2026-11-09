@@ -146,7 +146,7 @@ export function StudentsList() {
                 Moi Uczniowie
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Zarządzaj swoimi uczniami i sprawdzaj ich postępy.
+                Zarządzaj swoimi uczniami i sprawdzaj ich postępy
               </p>
             </div>
           </div>
@@ -188,7 +188,7 @@ export function StudentsList() {
               Moi Uczniowie
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Zarządzaj swoimi uczniami i sprawdzaj ich postępy.
+              Zarządzaj swoimi uczniami i sprawdzaj ich postępy
             </p>
           </div>
         </div>

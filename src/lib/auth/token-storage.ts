@@ -1,6 +1,6 @@
 // Przechowywanie tokena JWT w localStorage i ciasteczku.
 
-const TOKEN_KEY = "matcoreki:auth:token";
+const TOKEN_KEY = "jukuspace:auth:token";
 
 export const tokenStorage = {
   // Odczyt tokena z localStorage z pominięciem środowiska SSR.

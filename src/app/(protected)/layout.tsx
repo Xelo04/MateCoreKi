@@ -27,7 +27,7 @@ export default function ProtectedLayout({
       <div className="hidden md:block">
         <Sidebar />
       </div>
-      <main className="flex-1 h-full overflow-y-auto">
+      <main className="relative h-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto max-w-6xl w-full p-8">{children}</div>
       </main>
     </div>

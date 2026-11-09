@@ -94,7 +94,7 @@ export function Dashboard() {
               {session?.user.firstName || "Korepetytorze"}
             </span>
             . Oto zbiór ustandaryzowanych komponentów (Design System) platformy
-            MatCoreKi.
+            JukuSpace.
           </p>
         </div>
       </div>
@@ -155,7 +155,7 @@ export function Dashboard() {
               Heading 1
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-foreground">
-              Witaj w MatCoreKi
+              Witaj w JukuSpace
             </h1>
           </div>
           <Separator />

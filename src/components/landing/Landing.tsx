@@ -12,7 +12,7 @@ export function Landing() {
         </div>
 
         <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-          MatCoreKi
+          JukuSpace
         </h1>
 
         <p className="mt-4 text-base leading-7 text-slate-600 sm:text-lg">

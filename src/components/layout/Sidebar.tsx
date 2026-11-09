@@ -7,10 +7,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import {
   LayoutDashboard,
   Users,
   LibraryBig,
+  Folder,
   PenTool,
   CalendarDays,
   Settings,
@@ -30,9 +32,14 @@ const NAV_ITEMS = [
     icon: Users,
   },
   {
-    title: "Baza Zadań",
-    href: "/exercises",
+    title: "Baza zadań",
+    href: "/exercise-database",
     icon: LibraryBig,
+  },
+  {
+    title: "Zestawy zadań",
+    href: "/exercise-sets",
+    icon: Folder,
   },
   {
     title: "Kalendarz zajęć",
@@ -51,22 +58,20 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
-      {/* Logo marki. */}
-      <div className="flex h-16 shrink-0 items-center px-6 border-b border-border">
-        <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-primary">
-          <div className="h-6 w-6 rounded-md bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground text-sm">M</span>
-          </div>
-          MatCoreKi
-        </div>
+      {/* Logo marki */}
+      <div className="flex h-20 shrink-0 items-center justify-center border-b border-border px-2 py-1">
+        <Image
+          src="/logo.png"
+          alt="Logo"
+          width={240}
+          height={80}
+          priority
+          className="h-full w-full object-contain"
+        />
       </div>
 
       {/* Menu główne. */}
       <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 px-2">
-          Narzędzia nauczyciela
-        </div>
-
         {NAV_ITEMS.map((item) => {
           const isActive = pathname.startsWith(item.href);
           const Icon = item.icon;

@@ -62,13 +62,16 @@ const TabsList = React.forwardRef<
     4: "grid-cols-2 lg:grid-cols-4",
     5: "grid-cols-2 md:grid-cols-3 lg:grid-cols-5",
   }[cols];
+  const usesFlexLayout = className?.split(/\s+/).includes("flex") ?? false;
 
   return (
     <TabsPrimitive.List
       ref={ref}
       className={cn(
-        "grid h-auto w-full items-center justify-center gap-1.5 rounded-full bg-muted/70 p-1 text-muted-foreground",
-        gridClass,
+        usesFlexLayout
+          ? "flex h-auto w-full items-center justify-center gap-1.5 rounded-full bg-muted/70 p-1 text-muted-foreground"
+          : "grid h-auto w-full items-center justify-center gap-1.5 rounded-full bg-muted/70 p-1 text-muted-foreground",
+        !usesFlexLayout && gridClass,
         className,
       )}
       {...props}
@@ -99,7 +102,7 @@ const TabsTrigger = React.forwardRef<
       {isActive && (
         <motion.div
           layoutId={`tabPill-${context.instanceId}`}
-          className="absolute inset-0 z-0 rounded-full bg-primary shadow-sm"
+          className="absolute inset-0 z-0 rounded-[inherit] bg-primary shadow-sm"
           initial={false}
           transition={{
             type: "spring",
