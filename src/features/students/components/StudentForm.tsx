@@ -275,7 +275,7 @@ export const StudentForm = forwardRef<StudentFormHandle, StudentFormProps>(
                   name="educationType"
                   render={({ field }) => (
                     <Select
-                      value={field.value}
+                      value={field.value ?? ""}
                       onValueChange={(v) => field.onChange(v as EducationType)}
                     >
                       <SelectTrigger>

@@ -211,7 +211,7 @@ export function Register() {
             src="/logo_white.png"
             alt="Logo"
             width={200}
-            height={60}
+            height={87}
             priority
             className="w-50 h-auto object-contain"
           />

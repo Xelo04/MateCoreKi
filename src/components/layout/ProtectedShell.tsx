@@ -8,7 +8,7 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { KeyRound } from "lucide-react";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { MobileNavigation, Sidebar } from "@/components/layout/Sidebar";
 import { ModalShell } from "@/components/ui/modal-shell";
 import { DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/hook";
@@ -38,12 +38,15 @@ function ProtectedContent({ children }: { children: React.ReactNode }) {
         <Sidebar onChangePassword={() => setChangePasswordOpen(true)} />
       </div>
       <main className="relative h-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        {/* * Na telefonie dostęp do zmiany hasła i wylogowania zastępuje pasek boczny. */}
-        <div className="flex items-center justify-end gap-4 border-b border-border px-4 py-3 text-sm md:hidden">
-          <button type="button" onClick={() => setChangePasswordOpen(true)}>Zmień hasło</button>
-          <button type="button" onClick={() => void logout()}>Wyloguj się</button>
+        {/* * Na telefonie menu zapewnia dostęp do tych samych sekcji co sidebar. */}
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 text-xs sm:text-sm md:hidden">
+          <MobileNavigation />
+          <div className="flex items-center justify-end gap-3">
+            <button type="button" onClick={() => setChangePasswordOpen(true)}>Zmień hasło</button>
+            <button type="button" onClick={() => void logout()}>Wyloguj się</button>
+          </div>
         </div>
-        <div className="mx-auto max-w-6xl w-full p-8">{children}</div>
+        <div className="mx-auto max-w-6xl w-full p-4 sm:p-8">{children}</div>
       </main>
       {/* * Formularz zmiany hasła nie opuszcza bieżącego widoku panelu. */}
       <ModalShell
@@ -53,6 +56,7 @@ function ProtectedContent({ children }: { children: React.ReactNode }) {
         icon={<KeyRound className="h-6 w-6 text-white" />}
         title="Zmień hasło"
         hideFooter
+        hasDescription
       >
         <DialogDescription className="sr-only">Podaj obecne hasło oraz nowe hasło i jego potwierdzenie.</DialogDescription>
         {changePasswordOpen && <ChangePassword onSuccess={() => setChangePasswordOpen(false)} />}

@@ -6,9 +6,10 @@
 
 "use client";
 
-import type { ReactNode } from "react";
-import { Trash2 } from "lucide-react";
+import { useRef, type ReactNode } from "react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DialogDescription } from "@/components/ui/dialog";
 import { ModalShell } from "@/components/ui/modal-shell";
 
 interface DeleteConfirmModalProps {
@@ -28,6 +29,7 @@ export function DeleteConfirmModal({
   onClose,
   onConfirm,
 }: DeleteConfirmModalProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
   // * Podczas usuwania modal nie może zostać zamknięty (brak „osieroconej” operacji)
   const handleClose = () => {
     if (!isDeleting) onClose();
@@ -41,23 +43,39 @@ export function DeleteConfirmModal({
       }}
       onClose={handleClose}
       title={title}
-      icon={<Trash2 className="h-6 w-6 text-white" aria-hidden="true" />}
+      icon={<AlertTriangle className="h-6 w-6" aria-hidden="true" />}
       hideFooter
+      hasDescription
+      isSubmitting={isDeleting}
+      variant="destructive"
+      initialFocusRef={cancelRef}
     >
-      <div className="space-y-6 pt-2">
-        <p className="text-sm leading-relaxed text-foreground/80">
+      <div className="space-y-6 text-center">
+        <DialogDescription className="text-sm leading-relaxed text-muted-foreground">
           {description}
-        </p>
-        {/* * Akcja destrukcyjna — wariant destructive z design systemu */}
-        <Button
-          type="button"
-          variant="destructive"
-          className="mt-4 h-11 w-full rounded-xl text-base font-semibold"
-          disabled={isDeleting}
-          onClick={onConfirm}
-        >
-          {isDeleting ? "Trwa usuwanie..." : "Usuń trwale"}
-        </Button>
+        </DialogDescription>
+        <div className="flex flex-col-reverse gap-3 sm:flex-row">
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1 font-semibold"
+            disabled={isDeleting}
+            onClick={handleClose}
+            ref={cancelRef}
+          >
+            Anuluj, zachowaj
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            className="flex-1 font-semibold"
+            disabled={isDeleting}
+            onClick={onConfirm}
+          >
+            {isDeleting && <Loader2 className="animate-spin" aria-hidden="true" />}
+            {isDeleting ? "Trwa usuwanie..." : "Tak, usuń"}
+          </Button>
+        </div>
       </div>
     </ModalShell>
   );

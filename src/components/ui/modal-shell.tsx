@@ -25,6 +25,9 @@ interface ModalShellProps {
   onClose: () => void;
   className?: string;
   hideFooter?: boolean;
+  hasDescription?: boolean;
+  variant?: "default" | "destructive";
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 export function ModalShell({
@@ -40,34 +43,69 @@ export function ModalShell({
   onClose,
   className,
   hideFooter = false,
+  hasDescription = false,
+  variant = "default",
+  initialFocusRef,
 }: ModalShellProps) {
+  const previousFocus = React.useRef<HTMLElement | null>(null);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
+      {open && (
+        <DialogContent
+        showCloseButton={false}
+        {...(!hasDescription ? { "aria-describedby": undefined } : {})}
         className={cn(
-          "flex max-w-2xl max-h-[90vh] flex-col overflow-hidden p-0 gap-0 border-0 shadow-2xl",
-          "[&>button]:hidden",
+          "flex max-h-[min(90dvh,56rem)] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden rounded-3xl border border-border/70 p-0 shadow-2xl sm:rounded-3xl",
+          variant === "destructive" && "max-w-md",
           className,
         )}
-        onInteractOutside={(e) => {
-          const target = e.target as HTMLElement;
-          if (
-            target.closest("[data-radix-popper-content-wrapper]") ||
-            target.closest("[data-slot='popover-content']") ||
-            target.closest("[data-slot='select-content']") ||
-            target.closest("[role='listbox']") ||
-            target.closest("[role='dialog']")
-          ) {
-            e.preventDefault();
+        onOpenAutoFocus={(event) => {
+          const activeElement = document.activeElement;
+          const menu = activeElement?.closest("[role='menu']");
+          const menuTriggerId = menu?.getAttribute("aria-labelledby");
+          const menuTrigger =
+            menuTriggerId && document.getElementById(menuTriggerId);
+          previousFocus.current =
+            menuTrigger instanceof HTMLElement
+              ? menuTrigger
+              : activeElement instanceof HTMLElement
+                ? activeElement
+                : null;
+          if (initialFocusRef?.current) {
+            event.preventDefault();
+            initialFocusRef.current.focus();
+          }
+        }}
+        onCloseAutoFocus={(event) => {
+          if (previousFocus.current?.isConnected) {
+            event.preventDefault();
+            previousFocus.current.focus();
           }
         }}
       >
-        <DialogHeader className="relative shrink-0 bg-primary px-6 py-5">
-          <div className="flex items-center gap-4 pr-14">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 shadow-inner ring-1 ring-inset ring-white/30">
+        <DialogHeader
+          className={cn(
+            "relative shrink-0 border-b border-border/60 bg-gradient-to-br from-primary/10 via-background to-background px-6 py-5 sm:px-7",
+            variant === "destructive" && "border-0 bg-none pb-0 pt-8",
+          )}
+        >
+          <div
+            className={cn(
+              "flex items-center gap-4 pr-12",
+              variant === "destructive" && "flex-col gap-4 px-8 text-center",
+            )}
+          >
+            <div
+              className={cn(
+                "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20",
+                variant === "destructive" &&
+                  "h-14 w-14 rounded-full bg-destructive/10 text-destructive shadow-none",
+              )}
+            >
               {icon}
             </div>
-            <DialogTitle className="text-2xl font-bold tracking-tight text-white leading-tight">
+            <DialogTitle className="text-xl font-bold leading-tight tracking-tight text-foreground sm:text-2xl">
               {title}
             </DialogTitle>
           </div>
@@ -75,17 +113,20 @@ export function ModalShell({
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-4 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-xl text-white/90 transition-colors hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            disabled={isSubmitting}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             aria-label="Zamknij"
           >
             <X className="h-6 w-6" strokeWidth={2.5} />
           </button>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-7">
+          {children}
+        </div>
 
         {!hideFooter && (
-          <DialogFooter className="shrink-0 px-6 py-4">
+          <DialogFooter className="shrink-0 border-t border-border/60 bg-muted/20 px-6 py-4 sm:px-7">
             <Button
               type="button"
               variant="outline"
@@ -107,7 +148,8 @@ export function ModalShell({
             </Button>
           </DialogFooter>
         )}
-      </DialogContent>
+        </DialogContent>
+      )}
     </Dialog>
   );
 }

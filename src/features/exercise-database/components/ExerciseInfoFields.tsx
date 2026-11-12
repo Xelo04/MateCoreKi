@@ -471,7 +471,7 @@ export function ExerciseInfoFields() {
               name="exerciseTypeCode"
               render={({ field }) => (
                 <Select
-                  value={field.value}
+                  value={field.value ?? ""}
                   onValueChange={(next) => {
                     if (isLabelKey(EXERCISE_TYPE_LABELS, next)) {
                       field.onChange(next);

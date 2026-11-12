@@ -22,20 +22,9 @@ interface TimePickerProps {
 
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 
-const MINUTES = [
-  "00",
-  "05",
-  "10",
-  "15",
-  "20",
-  "25",
-  "30",
-  "35",
-  "40",
-  "45",
-  "50",
-  "55",
-];
+const MINUTES = Array.from({ length: 60 }, (_, i) =>
+  String(i).padStart(2, "0"),
+);
 
 export function TimePicker({
   value = "",
@@ -45,18 +34,8 @@ export function TimePicker({
 }: TimePickerProps) {
   const [h = "", m = ""] = value ? value.split(":") : ["", ""];
 
-  const normalizedM =
-    m && !MINUTES.includes(m)
-      ? MINUTES.reduce((prev, curr) =>
-          Math.abs(Number(curr) - Number(m)) <
-          Math.abs(Number(prev) - Number(m))
-            ? curr
-            : prev,
-        )
-      : m;
-
   const handleHourChange = (newH: string) => {
-    onChange?.(`${newH}:${normalizedM || "00"}`);
+    onChange?.(`${newH}:${m || "00"}`);
   };
 
   const handleMinuteChange = (newM: string) => {
@@ -73,7 +52,7 @@ export function TimePicker({
     >
       {/* Godzina. */}
       <Select
-        value={h || undefined}
+        value={h}
         onValueChange={handleHourChange}
         disabled={disabled}
       >
@@ -99,7 +78,7 @@ export function TimePicker({
 
       {/* Minuta. */}
       <Select
-        value={normalizedM || undefined}
+        value={m}
         onValueChange={handleMinuteChange}
         disabled={disabled}
       >

@@ -48,6 +48,10 @@ Dodając nowy endpoint, należy zaktualizować listę w
 JSON; pliki i Socket.IO nie należą do tego przepływu. Kod serwerowy nie
 powinien używać przeglądarkowego `apiClient` z względnym adresem.
 
+Przesyłanie nowych załączników do zadań jest tymczasowo niedostępne:
+aplikacja nie zapisuje ich już lokalnie. Istniejące pliki nie są usuwane;
+obsługa nowych załączników wymaga integracji z backendem.
+
 Testy klienta i autoryzacji uruchamia `npm run test:auth`; skrypt najpierw
 wykonuje build, a następnie korzysta z izolowanej atrapy API. Atrapa jest
 uruchamiana tylko na czas testów, aby nie wysyłać testowych danych do
@@ -64,6 +68,13 @@ pnpm dev
 # or
 bun dev
 ```
+
+`npm run dev` korzysta z Turbopacka. Po zmianie konfiguracji uruchom ponownie
+działający serwer; strony nadal kompilują się przy pierwszym otwarciu.
+
+Wersje `@radix-ui/react-dismissable-layer` i `@radix-ui/react-focus-scope`
+są przypięte, aby dialogi, menu i popovery współdzieliły obsługę fokusu
+i interakcji. Po aktualizacji Radix sprawdź `node --test tests/modal-dependencies.test.mjs`.
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 

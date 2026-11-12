@@ -623,9 +623,7 @@ export function LessonDetailsModal({
                         name="dayOfWeek"
                         render={({ field }) => (
                           <Select
-                            value={
-                              field.value ? String(field.value) : undefined
-                            }
+                            value={field.value != null ? String(field.value) : ""}
                             onValueChange={(v) => field.onChange(Number(v))}
                           >
                             <SelectTrigger

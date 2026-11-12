@@ -19,7 +19,15 @@ import {
   Settings,
   KeyRound,
   LogOut,
+  Menu,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Definicja struktury menu
 const NAV_ITEMS = [
@@ -54,6 +62,46 @@ const NAV_ITEMS = [
     icon: PenTool,
   },
 ];
+
+export function MobileNavigation() {
+  const pathname = usePathname();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button type="button" variant="outline" size="sm">
+          <Menu aria-hidden="true" />
+          Menu
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="max-h-[min(70dvh,24rem)] w-60 overflow-y-auto p-2"
+      >
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname.startsWith(item.href);
+
+          return (
+            <DropdownMenuItem key={item.href} asChild>
+              <Link
+                href={item.href}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "min-h-11 gap-3 px-3",
+                  isActive && "bg-primary/10 text-primary",
+                )}
+              >
+                <Icon aria-hidden="true" />
+                {item.title}
+              </Link>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 export function Sidebar({ onChangePassword }: { onChangePassword: () => void }) {
   const pathname = usePathname();
