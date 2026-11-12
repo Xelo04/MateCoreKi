@@ -6,8 +6,10 @@
 export interface User {
   id: number;
   email: string;
-  firstName: string;
-  lastName: string;
+  firstName: string | null;
+  lastName: string | null;
+  role: string;
+  mustChangePassword: boolean;
   createdAt: string;
 }
 
@@ -25,18 +27,4 @@ export interface RegisterCredentials {
 
 export interface AuthSession {
   user: User;
-}
-
-export interface UserApiResponse {
-  id: number;
-  email: string;
-  first_name: string;
-  last_name: string;
-  created_at: string;
-}
-
-export interface LoginApiResponse {
-  access_token: string;
-  token_type: string;
-  user: UserApiResponse;
 }

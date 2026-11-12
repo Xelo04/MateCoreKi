@@ -1,23 +1,23 @@
 // ==========================================
 // WIDOK: Logowanie użytkownika
 // ==========================================
-// Formularz logowania z obsługą walidacji Zod, autouzupełnianiem i OAuth Google.
+// Formularz logowania z walidacją Zod; Google OAuth nie jest jeszcze dostępny.
 
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { ArrowLeft, ArrowRight, Lock, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "../hook";
 import { loginSchema, LoginFormData } from "../schema";
+import { ApiError } from "@/lib/api/api-errors";
 
 export function Login() {
   const { login, isSubmitting } = useAuth();
@@ -25,17 +25,19 @@ export function Login() {
   const {
     register,
     handleSubmit,
-    control,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "", rememberMe: false },
+    defaultValues: { email: "", password: "" },
   });
 
   async function onSubmit(values: LoginFormData) {
     try {
       await login(values);
-    } catch {}
+    } catch (err) {
+      // * Hook wyświetla błąd; logujemy tylko status, bez danych logowania.
+      console.error("Nie udało się zalogować:", err instanceof ApiError ? err.status : "błąd żądania");
+    }
   }
 
   // * Tymczasowa funkcja obsługi logowania Google (do podpięcia w kolejnych krokach)
@@ -50,7 +52,7 @@ export function Login() {
       </header>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
-        {/* Email */}
+        {/* * Adres używany przez backend jako nazwa użytkownika. */}
         <div className="space-y-2">
           <Label htmlFor="email">Adres e-mail</Label>
           <div className="relative">
@@ -60,16 +62,18 @@ export function Login() {
               type="email"
               placeholder="jan@kowalski.pl"
               autoComplete="email"
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? "email-error" : undefined}
               className="pl-10"
               {...register("email")}
             />
           </div>
           {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
+            <p id="email-error" className="text-xs text-destructive">{errors.email.message}</p>
           )}
         </div>
 
-        {/* Hasło */}
+        {/* * Hasło może być uzupełnione przez menedżer haseł. */}
         <div className="space-y-2">
           <Label htmlFor="password">Hasło</Label>
           <div className="relative">
@@ -79,41 +83,21 @@ export function Login() {
               type="password"
               placeholder="••••••••"
               autoComplete="current-password"
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? "password-error" : undefined}
               className="pl-10"
               {...register("password")}
             />
           </div>
           {errors.password && (
-            <p className="text-xs text-destructive">
+            <p id="password-error" className="text-xs text-destructive">
               {errors.password.message}
             </p>
           )}
         </div>
 
-        {/* Checkbox i link do resetu */}
+        {/* * Widok resetowania informuje, że funkcja nie jest jeszcze dostępna. */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-          <div className="flex items-center gap-2">
-            <Controller
-              control={control}
-              name="rememberMe"
-              render={({ field }) => (
-                <Checkbox
-                  id="rememberMe"
-                  checked={field.value}
-                  onCheckedChange={(checked) =>
-                    field.onChange(checked === true)
-                  }
-                />
-              )}
-            />
-            <Label
-              htmlFor="rememberMe"
-              className="cursor-pointer text-sm font-normal text-muted-foreground"
-            >
-              Zapamiętaj mnie
-            </Label>
-          </div>
-
           <Link
             href="/forgot-password"
             className="text-sm font-medium text-foreground hover:underline"
@@ -122,7 +106,7 @@ export function Login() {
           </Link>
         </div>
 
-        {/* Przycisk logowania tradycyjnego */}
+        {/* * Ponowne wysłanie jest blokowane podczas logowania. */}
         <Button
           type="submit"
           className="w-full shadow-lg shadow-primary/20"
@@ -139,7 +123,7 @@ export function Login() {
         </Button>
       </form>
 
-      {/* Separator */}
+      {/* * Rozdzielenie logowania hasłem od planowanego OAuth. */}
       <div className="relative">
         <Separator />
         <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs uppercase text-muted-foreground">
@@ -147,12 +131,13 @@ export function Login() {
         </span>
       </div>
 
-      {/* Przycisk rejestracji przez Google */}
+      {/* * Google OAuth pozostaje wyłączony do czasu integracji. */}
       <Button
         type="button"
         variant="outline"
         className="w-full"
         onClick={handleGoogleLogin}
+        disabled
       >
         <Image
           src="/google-icon.svg"
@@ -164,7 +149,7 @@ export function Login() {
         Kontynuuj z Google
       </Button>
 
-      {/* Linki dolne */}
+      {/* * Nawigacja do rejestracji i strony głównej. */}
       <div className="space-y-2 pt-2 text-center">
         <p className="text-sm text-muted-foreground">
           Nie masz konta?{" "}

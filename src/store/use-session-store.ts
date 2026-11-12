@@ -1,7 +1,13 @@
-// Globalny stan sesji użytkownika przechowywany za pomocą Zustand.
+// ==========================================
+// STORE: Dane sesji użytkownika
+// ==========================================
+// Zustand przechowuje dane użytkownika, ale nie token z ciasteczka HttpOnly.
 
 import { create } from "zustand";
+import { createContext } from "react";
 import type { AuthSession } from "@/features/auth/types";
+
+export const InitialSessionContext = createContext<AuthSession | null>(null);
 
 type SessionStoreState = Readonly<{
   session: AuthSession | null;

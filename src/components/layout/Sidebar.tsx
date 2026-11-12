@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useAuth } from "@/features/auth/hook";
 import {
   LayoutDashboard,
   Users,
@@ -16,6 +17,7 @@ import {
   PenTool,
   CalendarDays,
   Settings,
+  KeyRound,
   LogOut,
 } from "lucide-react";
 
@@ -53,12 +55,14 @@ const NAV_ITEMS = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ onChangePassword }: { onChangePassword: () => void }) {
   const pathname = usePathname();
+  const { session, logout } = useAuth();
+  const name = [session?.user.firstName, session?.user.lastName].filter(Boolean).join(" ") || session?.user.email || "Konto";
 
   return (
     <aside className="flex h-screen w-64 flex-col border-r border-border bg-card">
-      {/* Logo marki */}
+      {/* * Logo prowadzi wizualnie do nawigacji panelu. */}
       <div className="flex h-20 shrink-0 items-center justify-center border-b border-border px-2 py-1">
         <Image
           src="/logo.png"
@@ -70,7 +74,7 @@ export function Sidebar() {
         />
       </div>
 
-      {/* Menu główne. */}
+      {/* * Aktywna pozycja zależy od aktualnej ścieżki. */}
       <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname.startsWith(item.href);
@@ -99,8 +103,16 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Profil i ustawienia. */}
+      {/* * Ustawienia i operacje na sesji są dostępne pod nawigacją. */}
       <div className="border-t border-border p-4 space-y-1">
+        <button
+          type="button"
+          onClick={onChangePassword}
+          className="flex w-full items-center gap-3 px-3 py-2 rounded-md text-left text-sm font-medium text-foreground/70 hover:bg-secondary hover:text-foreground"
+        >
+          <KeyRound className="h-5 w-5 shrink-0 text-muted-foreground" />
+          Zmień hasło
+        </button>
         <Link
           href="/settings"
           className={cn(
@@ -114,14 +126,14 @@ export function Sidebar() {
           Ustawienia
         </Link>
 
-        {/* Tymczasowe dane profilu nauczyciela. */}
+        {/* * Dane profilu pochodzą z aktualnej sesji korepetytora. */}
         <div className="mt-4 flex items-center gap-3 px-3 py-2">
           <div className="h-9 w-9 shrink-0 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-foreground">
-            AK
+            {name.slice(0, 2).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground truncate">
-              Anna Kowalska
+              {name}
             </p>
             <p className="text-xs text-muted-foreground truncate">
               Korepetytor
@@ -130,6 +142,8 @@ export function Sidebar() {
           <button
             className="text-muted-foreground hover:text-destructive transition-colors"
             title="Wyloguj się"
+            type="button"
+            onClick={() => void logout()}
           >
             <LogOut className="h-4 w-4" />
           </button>

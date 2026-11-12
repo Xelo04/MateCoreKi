@@ -1,74 +1,53 @@
 // ==========================================
-// INFRASTRUKTURA: Proxy / Middleware Uwierzytelniania
+// PROXY NEXT.JS: Ochrona widoków panelu
 // ==========================================
-// Odpowiada za przekierowania między trasami publicznymi a chronionymi.
+// Weryfikuje sesję przed wyświetleniem strony i kieruje do zmiany hasła.
+// Trasy API niezależnie sprawdzają uprawnienia dla każdego żądania.
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { clearSessionCookie, getTutorSession, SESSION_COOKIE } from "@/features/auth/session";
 
-// * Klucz ciasteczka - musi być spójny z implementacją w klasie TokenStorage
-const TOKEN_KEY = "jukuspace:auth:token";
+export async function proxy(request: NextRequest) {
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const isGuestPage = ["/login", "/register", "/forgot-password"].includes(request.nextUrl.pathname);
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("redirect", request.nextUrl.pathname + request.nextUrl.search);
 
-// ----- Definicje zakresów tras -----
+  if (!token) return isGuestPage ? NextResponse.next() : NextResponse.redirect(loginUrl);
 
-// * Trasy uwierzytelniania - dostępne wyłącznie dla niezalogowanych użytkowników
-const PUBLIC_AUTH_ROUTES = ["/login", "/register", "/forgot-password"];
-
-// * Wszystkie chronione trasy aplikacji - wymagają poprawnego tokena JWT
-const PROTECTED_ROUTES = [
-  "/dashboard",
-  "/board",
-  "/calendar",
-  "/students",
-  "/exercise-database",
-];
-
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // * Odczyt ciasteczka sesyjnego po stronie serwera
-  const token = request.cookies.get(TOKEN_KEY)?.value;
-
-  // * Sprawdzenie przynależności aktualnej ścieżki
-  const isPublicAuthRoute = PUBLIC_AUTH_ROUTES.some((route) =>
-    pathname.startsWith(route),
-  );
-  const isProtectedRoute = PROTECTED_ROUTES.some((route) =>
-    pathname.startsWith(route),
-  );
-
-  // ----- Logika przekierowań (Serwer-Side) -----
-  // ! Zalogowany użytkownik wchodzi na stronę logowania/rejestracji
-  if (token && isPublicAuthRoute) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  const result = await getTutorSession(token);
+  if (result.kind === "error") {
+    return new NextResponse("Nie udało się sprawdzić sesji. Spróbuj ponownie później.", {
+      status: 503,
+      headers: { "Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+  if (result.kind === "unauthorized") {
+    const response = isGuestPage ? NextResponse.next() : NextResponse.redirect(loginUrl);
+    clearSessionCookie(response);
+    return response;
   }
 
-  // ! Niezalogowany użytkownik próbuje wejść na chronioną trasę
-  if (!token && isProtectedRoute) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
+  const isChangePassword = request.nextUrl.pathname === "/change-password";
+  if (result.user.must_change_password && !isChangePassword) {
+    return NextResponse.redirect(new URL("/change-password", request.url));
   }
-
-  // * Zgoda na przejście dalej - brak konieczności przekierowania
+  if (isGuestPage) return NextResponse.redirect(new URL("/dashboard", request.url));
   return NextResponse.next();
 }
 
-// Ścieżki obsługiwane przez middleware.
 export const config = {
   matcher: [
+    "/dashboard/:path*",
+    "/board/:path*",
+    "/calendar/:path*",
+    "/students/:path*",
+    "/exercise-database/:path*",
+    "/exercise-sets/:path*",
+    "/change-password",
     "/login",
     "/register",
     "/forgot-password",
-    "/dashboard",
-    "/dashboard/:path*",
-    "/board",
-    "/board/:path*",
-    "/calendar",
-    "/calendar/:path*",
-    "/students",
-    "/students/:path*",
-    "/exercise-database",
-    "/exercise-database/:path*",
   ],
 };

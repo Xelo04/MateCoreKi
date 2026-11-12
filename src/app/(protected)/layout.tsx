@@ -1,35 +1,21 @@
 // ==========================================
-// LAYOUT: Layout dla aplikacji (chronione strony wymagające logowania)
+// LAYOUT: Chroniony panel korepetytora
 // ==========================================
+// Sprawdza sesję również na serwerze i przekazuje dane użytkownika do powłoki.
 
-"use client";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { ProtectedShell } from "@/components/layout/ProtectedShell";
+import { getTutorSession, SESSION_COOKIE, toUser } from "@/features/auth/session";
 
-import { usePathname } from "next/navigation";
-import { Sidebar } from "@/components/layout/Sidebar";
+export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  if (!token) redirect("/login");
 
-export default function ProtectedLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const pathname = usePathname();
-  // Sprawdza czy aktualna ścieżka to tablica
-  const isBoardPage = pathname?.includes("/board");
+  const session = await getTutorSession(token);
+  if (session.kind === "error") throw new Error("Nie udało się sprawdzić sesji.");
+  if (session.kind === "unauthorized") redirect("/login");
+  if (session.user.must_change_password) redirect("/change-password");
 
-  if (isBoardPage) {
-    // Zerowy layout dla tablicy
-    return <>{children}</>;
-  }
-
-  // Pełny layout z Sidebarem dla pozostałych stron chronionych
-  return (
-    <div className="flex h-screen w-full overflow-hidden bg-secondary/20">
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
-      <main className="relative h-full min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto max-w-6xl w-full p-8">{children}</div>
-      </main>
-    </div>
-  );
+  return <ProtectedShell initialSession={{ user: toUser(session.user) }}>{children}</ProtectedShell>;
 }

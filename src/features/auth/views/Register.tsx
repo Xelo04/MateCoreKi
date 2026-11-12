@@ -1,7 +1,7 @@
 // ==========================================
 // WIDOK: Rejestracja użytkownika
 // ==========================================
-// Formularz rejestracji nowego konta z obsługą walidacji Zod oraz OAuth Google.
+// Formularz rejestracji z walidacją Zod; Google OAuth nie jest jeszcze dostępny.
 
 "use client";
 
@@ -19,6 +19,7 @@ import { useAuth } from "../hook";
 import { registerSchema, RegisterFormData } from "../schema";
 import { ShowcaseCards } from "../components/ShowcaseCards";
 import packageJson from "../../../../package.json";
+import { ApiError } from "@/lib/api/api-errors";
 
 export function Register() {
   const { register: registerUser, isSubmitting } = useAuth();
@@ -35,7 +36,10 @@ export function Register() {
   async function onSubmit(values: RegisterFormData) {
     try {
       await registerUser(values);
-    } catch {}
+    } catch (err) {
+      // * Hook wyświetla błąd; logujemy tylko status, bez danych rejestracji.
+      console.error("Nie udało się utworzyć konta:", err instanceof ApiError ? err.status : "błąd żądania");
+    }
   }
 
   // * Tymczasowa funkcja rejestracji przez Google (do podpięcia w kolejnych krokach)
@@ -45,7 +49,7 @@ export function Register() {
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1fr_1.1fr]">
-      {/* Lewa strona - formularz rejestracji */}
+      {/* * Formularz i nawigacja do pozostałych stron autoryzacji. */}
       <main className="flex items-center justify-center bg-background px-6 py-12 order-1 lg:order-0">
         <div className="w-full max-w-sm space-y-8">
           <header className="text-center">
@@ -59,7 +63,7 @@ export function Register() {
             className="space-y-5"
             noValidate
           >
-            {/* Imię i Nazwisko */}
+            {/* * Dane profilu korepetytora. */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Imię</Label>
@@ -67,10 +71,12 @@ export function Register() {
                   id="firstName"
                   placeholder="Jan"
                   autoComplete="given-name"
+                  aria-invalid={!!errors.firstName}
+                  aria-describedby={errors.firstName ? "first-name-error" : undefined}
                   {...register("firstName")}
                 />
                 {errors.firstName && (
-                  <p className="text-xs text-destructive">
+                  <p id="first-name-error" className="text-xs text-destructive">
                     {errors.firstName.message}
                   </p>
                 )}
@@ -81,17 +87,19 @@ export function Register() {
                   id="lastName"
                   placeholder="Kowalski"
                   autoComplete="family-name"
+                  aria-invalid={!!errors.lastName}
+                  aria-describedby={errors.lastName ? "last-name-error" : undefined}
                   {...register("lastName")}
                 />
                 {errors.lastName && (
-                  <p className="text-xs text-destructive">
+                  <p id="last-name-error" className="text-xs text-destructive">
                     {errors.lastName.message}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Adres e-mail */}
+            {/* * Adres będzie służyć do logowania. */}
             <div className="space-y-2">
               <Label htmlFor="email">Adres e-mail</Label>
               <Input
@@ -99,16 +107,18 @@ export function Register() {
                 type="email"
                 placeholder="jan@kowalski.pl"
                 autoComplete="email"
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? "email-error" : undefined}
                 {...register("email")}
               />
               {errors.email && (
-                <p className="text-xs text-destructive">
+                <p id="email-error" className="text-xs text-destructive">
                   {errors.email.message}
                 </p>
               )}
             </div>
 
-            {/* Hasło */}
+            {/* * Nowe hasło podlega walidacji schematu rejestracji. */}
             <div className="space-y-2">
               <Label htmlFor="password">Hasło</Label>
               <Input
@@ -116,16 +126,18 @@ export function Register() {
                 type="password"
                 placeholder="••••••••"
                 autoComplete="new-password"
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? "password-error" : undefined}
                 {...register("password")}
               />
               {errors.password && (
-                <p className="text-xs text-destructive">
+                <p id="password-error" className="text-xs text-destructive">
                   {errors.password.message}
                 </p>
               )}
             </div>
 
-            {/* Przycisk wysyłania formularza */}
+            {/* * Ponowne wysłanie jest blokowane podczas rejestracji. */}
             <Button
               type="submit"
               className="w-full shadow-lg shadow-primary/20"
@@ -135,7 +147,7 @@ export function Register() {
             </Button>
           </form>
 
-          {/* Separator */}
+          {/* * Rozdzielenie rejestracji hasłem od planowanego OAuth. */}
           <div className="relative">
             <Separator />
             <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs uppercase text-muted-foreground">
@@ -143,12 +155,13 @@ export function Register() {
             </span>
           </div>
 
-          {/* Przycisk rejestracji przez Google */}
+          {/* * Google OAuth pozostaje wyłączony do czasu integracji. */}
           <Button
             type="button"
             variant="outline"
             className="w-full"
             onClick={handleGoogleRegister}
+            disabled
           >
             <Image
               src="/google-icon.svg"
@@ -160,7 +173,7 @@ export function Register() {
             Kontynuuj z Google
           </Button>
 
-          {/* Dolne linki nawigacyjne */}
+          {/* * Nawigacja do logowania i strony głównej. */}
           <div className="space-y-2 pt-2 text-center">
             <p className="text-sm text-muted-foreground">
               Masz już konto?{" "}
@@ -181,8 +194,8 @@ export function Register() {
         </div>
       </main>
 
-      {/* Prawa strona - showcase kart i grafika brandowa */}
-      {/* TODO poprawić kafelki na faktycznie funkcjonalności aplikacji */}
+      {/* * Grafika brandowa i przykładowe karty są widoczne na dużych ekranach. */}
+      {/* * TODO: [UX] Dostosować przykładowe karty do faktycznych funkcjonalności. */}
       <aside className="relative hidden overflow-hidden lg:flex flex-col justify-between p-12 xl:p-16 text-white bg-slate-950 order-2 lg:order-0">
         <div
           className="absolute inset-0 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950"
