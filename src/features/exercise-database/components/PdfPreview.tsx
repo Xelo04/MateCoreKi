@@ -17,10 +17,10 @@ import { PdfSkeleton } from "./PdfSkeleton";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
-// ! Worker jest ładowany z unpkg, by nie trzymać go w paczce aplikacji.
-// ! Wersja MUSI być identyczna z wersją pdfjs w package.json (stąd pdfjs.version).
-// ? Do rozważenia: self-hosting workera (CSP, dostępność offline, brak zależności od zewnętrznego CDN).
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
 
 // ==========================================
 // STAŁE I TYPY
@@ -42,7 +42,7 @@ interface PageSize {
 }
 
 interface PdfPreviewProps {
-  readonly url: string;
+  readonly file: string | File;
 }
 
 // * Cache wymiarów stron per URL (poziom modułu — przeżywa remount komponentu)
@@ -117,9 +117,9 @@ const PdfError = () => (
 // KOMPONENT WEWNĘTRZNY: Dokument
 // ==========================================
 
-const PdfDocument = ({ url }: PdfPreviewProps) => {
+const PdfDocument = ({ file }: PdfPreviewProps) => {
   const [pageSizes, setPageSizes] = useState<readonly PageSize[] | null>(
-    () => pageSizesCache.get(url) ?? null,
+    () => typeof file === "string" ? pageSizesCache.get(file) ?? null : null,
   );
   const [hasError, setHasError] = useState(false);
 
@@ -127,7 +127,11 @@ const PdfDocument = ({ url }: PdfPreviewProps) => {
   // * Dzięki temu ramki mają poprawną wysokość, zanim canvasy się narysują.
   const handleLoadSuccess = useCallback(
     async (pdf: LoadedPdf) => {
-      if (pageSizesCache.has(url)) return;
+      const cachedSizes = typeof file === "string" ? pageSizesCache.get(file) : undefined;
+      if (cachedSizes) {
+        setPageSizes(cachedSizes);
+        return;
+      }
       try {
         const pages = await Promise.all(
           Array.from({ length: pdf.numPages }, (_, index) =>
@@ -139,7 +143,7 @@ const PdfDocument = ({ url }: PdfPreviewProps) => {
           return { width: viewport.width, height: viewport.height };
         });
 
-        pageSizesCache.set(url, sizes);
+        if (typeof file === "string") pageSizesCache.set(file, sizes);
         setPageSizes(sizes);
       } catch (err) {
         console.error(
@@ -149,7 +153,7 @@ const PdfDocument = ({ url }: PdfPreviewProps) => {
         setHasError(true);
       }
     },
-    [url],
+    [file],
   );
 
   if (hasError) return <PdfError />;
@@ -157,7 +161,7 @@ const PdfDocument = ({ url }: PdfPreviewProps) => {
   return (
     <div className={`w-full ${PDF_SCALE_CLASSES}`}>
       <Document
-        file={url}
+        file={file}
         className="flex flex-col gap-4"
         loading={
           pageSizes ? (
@@ -195,9 +199,8 @@ const PdfDocument = ({ url }: PdfPreviewProps) => {
 // EKSPORT
 // ==========================================
 
-// ! `key={url}` wymusza remount dokumentu przy zmianie URL (brak starego stanu).
-const PdfPreview = memo(({ url }: PdfPreviewProps) => (
-  <PdfDocument key={url} url={url} />
+const PdfPreview = memo(({ file }: PdfPreviewProps) => (
+  <PdfDocument key={typeof file === "string" ? file : `${file.name}-${file.size}-${file.lastModified}`} file={file} />
 ));
 
 PdfPreview.displayName = "PdfPreview";

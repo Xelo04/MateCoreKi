@@ -194,7 +194,7 @@ export function ExerciseMetadataGrid({
                 key={tag.id}
                 className="border-transparent bg-primary/10 font-medium text-primary hover:bg-primary/20"
               >
-                #{tag.name}
+                {tag.name}
               </Badge>
             ))}
           </div>

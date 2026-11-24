@@ -16,6 +16,7 @@ import { ExerciseBrowser } from "../components/ExerciseBrowser";
 import { ExerciseFormModal } from "../components/ExerciseFormModal";
 import { ErrorState } from "@/components/ListStates";
 import { useCategoriesTree, useExercisesList } from "../hook";
+import { useExerciseFilters } from "@/store/use-exercise-filters-store";
 
 // ==========================================
 // TYPY LOKALNE
@@ -40,7 +41,12 @@ export function ExercisesView() {
     refetch: refetchExercises,
     deleteExercise,
   } = useExercisesList();
-  const { tree: categoriesTree } = useCategoriesTree();
+  const {
+    tree: categoriesTree,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+    refetch: refetchCategories,
+  } = useCategoriesTree();
 
   // ----- Stan modali -----
   const [exerciseModal, setExerciseModal] = useState<ExerciseModalState>({
@@ -48,7 +54,7 @@ export function ExercisesView() {
   });
   const [exerciseToDelete, setExerciseToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const filterState = useExerciseFilters();
 
   // ----- Handlery -----
 
@@ -97,8 +103,11 @@ export function ExercisesView() {
               aria-label="Szukaj w bazie zadań"
               placeholder="Szukaj po tytule, dziale lub tagu..."
               className="h-11 rounded-xl border-border/50 bg-card pl-11"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              value={filterState.filters.query}
+              onChange={(event) => {
+                const query = event.target.value;
+                filterState.setFilters((previous) => ({ ...previous, query }));
+              }}
             />
           </div>
           <Button
@@ -117,13 +126,16 @@ export function ExercisesView() {
       {/* ========================================== */}
       {exercisesError ? (
         <ErrorState message={exercisesError} onRetry={refetchExercises} />
+      ) : categoriesError ? (
+        <ErrorState message={categoriesError} onRetry={refetchCategories} />
       ) : (
         <ExerciseBrowser
           exercises={exercises}
           isLoading={exercisesLoading}
+          isCategoriesLoading={categoriesLoading}
           categoriesTree={categoriesTree}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
+          filterState={filterState}
+          searchInHeader
           onEdit={(id) => setExerciseModal({ isOpen: true, exerciseId: id })}
           onDelete={setExerciseToDelete}
         />
@@ -147,8 +159,8 @@ export function ExercisesView() {
         description={
           <>
             Czy na pewno chcesz trwale usunąć to zadanie? Tej operacji{" "}
-            <strong>nie można cofnąć</strong>, a zadanie zostanie usunięte ze
-            wszystkich przypisanych zestawów.
+            <strong>nie można cofnąć</strong>. Usunięcie zadania używanego w
+            zestawie jest niemożliwe.
           </>
         }
         isDeleting={isDeleting}

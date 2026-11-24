@@ -166,11 +166,13 @@ function ItemActions({
 interface SetPreviewItemProps extends Omit<ItemActionsProps, "variant"> {
   readonly exercise: Exercise | undefined;
   readonly isFailed: boolean;
+  readonly onRetry: () => void;
 }
 
 function SetPreviewItem({
   exercise,
   isFailed,
+  onRetry,
   ...actions
 }: SetPreviewItemProps) {
   return (
@@ -182,9 +184,14 @@ function SetPreviewItem({
         {exercise ? (
           <ExerciseContentRenderer blocks={exercise.content} />
         ) : isFailed ? (
-          <p role="alert" className="text-sm font-medium text-destructive">
-            Nie udało się wczytać treści zadania.
-          </p>
+          <div className="space-y-3">
+            <p role="alert" className="text-sm font-medium text-destructive">
+              Nie udało się wczytać treści zadania.
+            </p>
+            <Button type="button" variant="outline" onClick={onRetry}>
+              Ponów
+            </Button>
+          </div>
         ) : (
           <ContentLoader minHeight="min-h-20" />
         )}
@@ -216,7 +223,12 @@ function ExerciseSetBuilderForm({
     error: exercisesError,
     refetch: refetchExercises,
   } = useExercisesList();
-  const { tree: categoriesTree } = useCategoriesTree();
+  const {
+    tree: categoriesTree,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+    refetch: refetchCategories,
+  } = useCategoriesTree();
   const { folders, createFolder } = useExerciseSetFolders();
 
   // ----- Stan UI -----
@@ -266,7 +278,7 @@ function ExerciseSetBuilderForm({
   );
 
   // * Pełne treści zadań pobierane tylko w trybie „Podgląd”
-  const { details, failedIds } = useExerciseDetailsMap(
+  const { details, failedIds, invalidateDetail } = useExerciseDetailsMap(
     selectedIds,
     viewMode === "preview",
   );
@@ -491,9 +503,13 @@ function ExerciseSetBuilderForm({
       {/* ========================================== */}
       {exercisesError ? (
         <ErrorState message={exercisesError} onRetry={refetchExercises} />
+      ) : categoriesError ? (
+        <ErrorState message={categoriesError} onRetry={refetchCategories} />
       ) : (
         <ExerciseBrowser
           exercises={allExercises}
+          isLoading={exercisesLoading}
+          isCategoriesLoading={categoriesLoading}
           categoriesTree={categoriesTree}
           excludedExerciseIds={usedExerciseIds}
           listMode="scrollable"
@@ -627,6 +643,7 @@ function ExerciseSetBuilderForm({
                 key={field.id}
                 exercise={details.get(field.exercise_id)}
                 isFailed={failedIds.has(field.exercise_id)}
+                onRetry={() => invalidateDetail(field.exercise_id)}
                 isFirst={index === 0}
                 isLast={index === fields.length - 1}
                 onMoveUp={() => move(index, index - 1)}
@@ -667,7 +684,10 @@ function ExerciseSetBuilderForm({
         onOpenChange={(open) => {
           if (!open) setPreviewExerciseId(null);
         }}
-        onUpdated={refetchExercises}
+        onUpdated={() => {
+          if (previewExerciseId !== null) invalidateDetail(previewExerciseId);
+          refetchExercises();
+        }}
         onDeleted={(deletedId) => {
           // * Usunięte zadanie znika też z zestawu w budowie (inaczej: „Zadanie niedostępne”)
           const index = fields.findIndex(

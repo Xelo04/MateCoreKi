@@ -8,11 +8,13 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Edit2,
   FileDown,
   FileText,
@@ -24,6 +26,8 @@ import { Button } from "@/components/ui/button";
 import { ModalShell } from "@/components/ui/modal-shell";
 
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
+import { ErrorState } from "@/components/ListStates";
+import { ApiError } from "@/lib/api/api-errors";
 import {
   ExerciseContentPanel,
   SolutionToggleButton,
@@ -33,8 +37,10 @@ import {
   DetailsToggleButton,
   ExerciseMetadataGrid,
 } from "../components/ExerciseMetadataGrid";
-import { useExerciseDetails } from "../hook";
+import { useCategoriesTree, useExerciseDetails, useExercisesList } from "../hook";
 import { ExerciseService } from "../service";
+import { filterExercises, getExerciseNeighbors } from "../utils";
+import { useExerciseFilters } from "@/store/use-exercise-filters-store";
 
 // ==========================================
 // KOMPONENT POMOCNICZY: Stan ładowania
@@ -67,6 +73,23 @@ export function ExerciseDetailView({
   const router = useRouter();
   const { exercise, isLoading, error, refetch } =
     useExerciseDetails(exerciseId);
+  const { filters } = useExerciseFilters();
+  const {
+    items: exercises,
+    isLoading: exercisesLoading,
+    error: exercisesError,
+    refetch: refetchExercises,
+  } = useExercisesList();
+  const {
+    tree: categoriesTree,
+    isLoading: categoriesLoading,
+    error: categoriesError,
+    refetch: refetchCategories,
+  } = useCategoriesTree();
+  const neighbors = useMemo(
+    () => getExerciseNeighbors(filterExercises(exercises, filters, categoriesTree), exerciseId),
+    [exercises, filters, categoriesTree, exerciseId],
+  );
 
   // * Kontrola UI
   const [isSolutionVisible, setIsSolutionVisible] = useState(false);
@@ -84,12 +107,10 @@ export function ExerciseDetailView({
   // * Błąd sieci jest już zatoastowany przez hook; „nie znaleziono” toastujemy tu
   // * (stałe `id` zapobiega podwójnemu toastowi w StrictMode).
   useEffect(() => {
-    if (isLoading || exercise) return;
-    if (!error) {
-      toast.error("Nie znaleziono zadania o podanym ID", {
-        id: "exercise-not-found",
-      });
-    }
+    if (isLoading || exercise || error) return;
+    toast.error("Nie znaleziono zadania o podanym ID", {
+      id: "exercise-not-found",
+    });
     router.push("/exercise-database");
   }, [isLoading, exercise, error, router]);
 
@@ -113,8 +134,13 @@ export function ExerciseDetailView({
       toast.success("Zadanie zostało usunięte");
       router.push("/exercise-database");
     } catch (err) {
-      console.error("Delete exercise error:", err);
-      toast.error("Nie udało się usunąć zadania");
+      if (!(err instanceof ApiError && err.status < 500))
+        console.error("Delete exercise error:", err);
+      toast.error(
+        err instanceof ApiError && err.status === 409
+          ? err.message
+          : "Nie udało się usunąć zadania",
+      );
       setIsDeleting(false);
     }
   };
@@ -124,8 +150,16 @@ export function ExerciseDetailView({
     toast.info("Eksport do PDF będzie dostępny wkrótce.");
   };
 
+  const navigateToExercise = (id: string) => {
+    setIsSolutionVisible(false);
+    setIsDetailsOpen(false);
+    router.push(`/exercise-database/${id}`);
+  };
+
   // * Loader tylko przy pierwszym ładowaniu; refetch po edycji nie zasłania strony
   if (isLoading && !exercise) return <ExerciseLoadingState />;
+  if (error && !exercise)
+    return <ErrorState message={error} onRetry={refetch} />;
   if (!exercise) return null;
 
   const hasSolution = Boolean(exercise.solution?.length);
@@ -140,18 +174,19 @@ export function ExerciseDetailView({
           type="button"
           variant="ghost"
           onClick={() => router.push("/exercise-database")}
-          className="h-11 rounded-xl text-muted-foreground hover:text-foreground"
+          className="h-11 w-full rounded-xl text-muted-foreground hover:text-foreground sm:w-auto"
         >
           <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
           Wróć do listy
         </Button>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto sm:flex-wrap">
           {/* * Przełącznik rozwiązania (tylko gdy zadanie je ma) */}
           {hasSolution && (
             <SolutionToggleButton
               isVisible={isSolutionVisible}
               onToggle={() => setIsSolutionVisible((visible) => !visible)}
+              className="col-span-2 w-full sm:w-auto"
             />
           )}
 
@@ -159,32 +194,90 @@ export function ExerciseDetailView({
             type="button"
             variant="outline"
             onClick={handleExportPdf}
-            className="hidden h-11 rounded-xl bg-white shadow-sm lg:flex"
+            className="col-span-2 h-11 w-full rounded-xl bg-white shadow-sm sm:w-auto"
           >
             <FileDown className="mr-2 h-4 w-4" aria-hidden="true" />
             Eksportuj PDF
           </Button>
 
-          <Button
-            type="button"
-            onClick={() => setIsEditModalOpen(true)}
-            className="h-11 rounded-xl bg-blue-600 font-semibold text-white shadow-sm hover:bg-blue-700"
-          >
-            <Edit2 className="mr-2 h-4 w-4" aria-hidden="true" />
-            Edytuj
-          </Button>
+          {exercise.isOwner && (
+            <Button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="h-11 w-full rounded-xl bg-blue-600 font-semibold text-white shadow-sm hover:bg-blue-700 sm:w-auto"
+            >
+              <Edit2 className="mr-2 h-4 w-4" aria-hidden="true" />
+              Edytuj
+            </Button>
+          )}
 
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => setIsDeleteDialogOpen(true)}
-            className="h-11 rounded-xl shadow-sm"
-          >
-            <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
-            Usuń
-          </Button>
+          {exercise.isOwner && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="h-11 w-full rounded-xl shadow-sm sm:w-auto"
+            >
+              <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+              Usuń
+            </Button>
+          )}
         </div>
       </div>
+
+      <nav
+        aria-label="Przeglądanie przefiltrowanych zadań"
+        className="flex flex-none flex-col items-center gap-2 lg:order-last"
+      >
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            type="button"
+            variant="default"
+            aria-label="Poprzednie zadanie"
+            className="h-11 w-11 rounded-xl px-0 lg:w-auto lg:px-4"
+            disabled={exercisesLoading || categoriesLoading || Boolean(exercisesError || categoriesError) || !neighbors.previous}
+            onClick={() => neighbors.previous && navigateToExercise(neighbors.previous.id)}
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden lg:inline">Poprzednie zadanie</span>
+          </Button>
+          <span className="min-w-16 text-center text-sm text-muted-foreground" aria-live="polite">
+            {exercisesLoading || categoriesLoading
+              ? "..."
+              : exercisesError || categoriesError || neighbors.index < 0
+                ? "—"
+                : `${neighbors.index + 1} z ${neighbors.total}`}
+          </span>
+          <Button
+            type="button"
+            variant="default"
+            aria-label="Następne zadanie"
+            className="h-11 w-11 rounded-xl px-0 lg:w-auto lg:px-4"
+            disabled={exercisesLoading || categoriesLoading || Boolean(exercisesError || categoriesError) || !neighbors.next}
+            onClick={() => neighbors.next && navigateToExercise(neighbors.next.id)}
+          >
+            <span className="hidden lg:inline">Następne zadanie</span>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </div>
+        {exercisesLoading || categoriesLoading ? (
+          <span role="status" className="text-sm text-muted-foreground">Ładowanie listy zadań...</span>
+        ) : exercisesError || categoriesError ? (
+          <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-destructive" role="alert">
+            <span>Nie udało się załadować listy zadań do nawigacji.</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => {
+              if (exercisesError) refetchExercises();
+              if (categoriesError) refetchCategories();
+            }}>
+              Spróbuj ponownie
+            </Button>
+          </div>
+        ) : neighbors.index < 0 ? (
+          <span className="text-center text-sm text-muted-foreground">
+            To zadanie nie znajduje się na przefiltrowanej liście.
+          </span>
+        ) : null}
+      </nav>
 
       {/* ========================================== */}
       {/* TYTUŁ + PRZYCISK SZCZEGÓŁÓW                */}
@@ -236,7 +329,10 @@ export function ExerciseDetailView({
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
         exerciseId={exerciseId}
-        onSuccess={refetch}
+        onSuccess={() => {
+          refetch();
+          refetchExercises();
+        }}
       />
 
       <DeleteConfirmModal
@@ -245,8 +341,8 @@ export function ExerciseDetailView({
         description={
           <>
             Czy na pewno chcesz trwale usunąć to zadanie? Tej operacji{" "}
-            <strong>nie można cofnąć</strong>, a zadanie zostanie usunięte ze
-            wszystkich przypisanych zestawów.
+            <strong>nie można cofnąć</strong>. Usunięcie zadania używanego w
+            zestawie jest niemożliwe.
           </>
         }
         isDeleting={isDeleting}
@@ -295,8 +391,13 @@ function ExerciseDetailModalBody({
       onDeleted?.(exerciseId);
       onClose();
     } catch (err) {
-      console.error("Delete exercise error:", err);
-      toast.error("Nie udało się usunąć zadania");
+      if (!(err instanceof ApiError && err.status < 500))
+        console.error("Delete exercise error:", err);
+      toast.error(
+        err instanceof ApiError && err.status === 409
+          ? err.message
+          : "Nie udało się usunąć zadania",
+      );
       setIsDeleting(false);
     }
   };
@@ -305,6 +406,7 @@ function ExerciseDetailModalBody({
   if (isLoading && !exercise) return <ExerciseLoadingState />;
 
   if (!exercise) {
+    if (error) return <ErrorState message={error} onRetry={refetch} />;
     return (
       <p
         role="alert"
@@ -341,24 +443,28 @@ function ExerciseDetailModalBody({
             onToggle={() => setIsDetailsOpen((open) => !open)}
           />
 
-          <Button
-            type="button"
-            onClick={() => setIsEditOpen(true)}
-            className="h-11 rounded-xl bg-blue-600 font-semibold text-white shadow-sm hover:bg-blue-700"
-          >
-            <Edit2 className="mr-2 h-4 w-4" aria-hidden="true" />
-            Edytuj
-          </Button>
+          {exercise.isOwner && (
+            <Button
+              type="button"
+              onClick={() => setIsEditOpen(true)}
+              className="h-11 rounded-xl bg-blue-600 font-semibold text-white shadow-sm hover:bg-blue-700"
+            >
+              <Edit2 className="mr-2 h-4 w-4" aria-hidden="true" />
+              Edytuj
+            </Button>
+          )}
 
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => setIsDeleteOpen(true)}
-            className="h-11 rounded-xl shadow-sm"
-          >
-            <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
-            Usuń
-          </Button>
+          {exercise.isOwner && (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setIsDeleteOpen(true)}
+              className="h-11 rounded-xl shadow-sm"
+            >
+              <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+              Usuń
+            </Button>
+          )}
         </div>
       </div>
 
@@ -403,8 +509,8 @@ function ExerciseDetailModalBody({
         description={
           <>
             Czy na pewno chcesz trwale usunąć to zadanie? Tej operacji{" "}
-            <strong>nie można cofnąć</strong>, a zadanie zostanie usunięte ze
-            wszystkich przypisanych zestawów.
+            <strong>nie można cofnąć</strong>. Usunięcie zadania używanego w
+            zestawie jest niemożliwe.
           </>
         }
         isDeleting={isDeleting}

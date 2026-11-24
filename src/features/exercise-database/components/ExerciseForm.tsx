@@ -7,7 +7,8 @@
 
 "use client";
 
-import { forwardRef, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { Check } from "lucide-react";
 import type { input } from "zod";
 import {
   FormProvider,
@@ -18,10 +19,14 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { ApiError } from "@/lib/api/api-errors";
 
-import { exerciseFormSchema, type ExerciseFormData } from "../schema";
+import {
+  exerciseFormSchema,
+  type ExerciseFormBlockData,
+  type ExerciseFormData,
+} from "../schema";
 import { ExerciseService } from "../service";
 import { ExerciseBlockBuilder } from "./ExerciseBlockBuilder";
 import { ExerciseInfoFields } from "./ExerciseInfoFields";
@@ -38,8 +43,7 @@ export interface ExerciseFormResult {
 }
 
 export interface ExerciseFormHandle {
-  // ? validate() nie jest obecnie używane przez modal — zachowane jako część publicznego API
-  validate: () => Promise<boolean>;
+  validateStep: () => Promise<boolean>;
   submit: () => Promise<ExerciseFormResult>;
 }
 
@@ -47,6 +51,8 @@ interface ExerciseFormProps {
   readonly mode: "add" | "edit";
   readonly exerciseId?: string;
   readonly defaultValues?: Partial<ExerciseFormData>;
+  readonly isSubmitting: boolean;
+  readonly activeTab: FormTabId;
 }
 
 // ==========================================
@@ -57,7 +63,6 @@ interface ExerciseFormProps {
 const EMPTY_FORM: Partial<ExerciseFormData> = {
   title: "",
   exerciseTypeCode: undefined,
-  sourceTypeCode: undefined,
   mathLevel: null,
   difficulty: null,
   points: null,
@@ -67,7 +72,7 @@ const EMPTY_FORM: Partial<ExerciseFormData> = {
   solution: [],
 };
 
-type FormTabId = "info" | "content" | "solution";
+export type FormTabId = "info" | "content" | "solution";
 
 const FORM_TABS: readonly {
   readonly id: FormTabId;
@@ -84,8 +89,41 @@ const FORM_TABS: readonly {
 // ==========================================
 
 export const ExerciseForm = forwardRef<ExerciseFormHandle, ExerciseFormProps>(
-  function ExerciseForm({ mode, exerciseId, defaultValues }, ref) {
-    const [activeTab, setActiveTab] = useState<FormTabId>("info");
+  function ExerciseForm(
+    { mode, exerciseId, defaultValues, isSubmitting, activeTab },
+    ref,
+  ) {
+    const uploads = useRef(
+      new Map<
+        File,
+        { id: number; mimeType: string; originalName: string | null }
+      >(),
+    );
+    const saveOutcomeUnknown = useRef(false);
+
+    useEffect(() => {
+      const tracked = uploads.current;
+      return () => {
+        if (saveOutcomeUnknown.current && tracked.size > 0) {
+          console.warn(
+            "Nie usunięto przesłanych plików: wynik zapisu zadania jest nieznany.",
+          );
+          toast.error(
+            "Nie można potwierdzić zapisu zadania. Przesłane pliki mogły pozostać na serwerze.",
+          );
+          return;
+        }
+        for (const asset of tracked.values()) {
+          void ExerciseService.deleteUnusedAsset(asset.id).catch((err) => {
+            console.error("Nie udało się usunąć nieużywanego pliku:", err);
+            toast.error(
+              "Nie udało się usunąć nieużywanego załącznika z serwera.",
+            );
+          });
+        }
+        tracked.clear();
+      };
+    }, []);
 
     // * Inicjalizacja formularza (schemat Zod = jedyne źródło walidacji)
     const form = useForm<
@@ -98,12 +136,7 @@ export const ExerciseForm = forwardRef<ExerciseFormHandle, ExerciseFormProps>(
       mode: "onBlur",
     });
 
-    const {
-      control,
-      handleSubmit,
-      trigger,
-      formState: { errors },
-    } = form;
+    const { control, handleSubmit, trigger } = form;
 
     // * Subskrypcje bloków dla podglądu na żywo
     const watchedContent = useWatch({ control, name: "content" });
@@ -113,168 +146,240 @@ export const ExerciseForm = forwardRef<ExerciseFormHandle, ExerciseFormProps>(
     useImperativeHandle(
       ref,
       () => ({
-        validate: async () => trigger(),
+        validateStep: () =>
+          activeTab === "info"
+            ? trigger(
+                [
+                  "title",
+                  "exerciseTypeCode",
+                  "mathLevel",
+                  "difficulty",
+                  "points",
+                  "categoryIds",
+                  "tagIds",
+                ],
+                { shouldFocus: true },
+              )
+            : trigger(activeTab === "content" ? "content" : "solution", {
+                shouldFocus: true,
+              }),
         submit: () =>
           new Promise<ExerciseFormResult>((resolve) => {
             void handleSubmit(
               // * Walidacja przeszła — zapis przez serwis
               async (data: ExerciseFormData) => {
+                const previouslyUnknown = saveOutcomeUnknown.current;
+                let exerciseRequestStarted = false;
                 try {
+                  const resolveBlocks = async (
+                    blocks: ExerciseFormBlockData[],
+                  ): Promise<ExerciseFormBlockData[]> => {
+                    const resolved: ExerciseFormBlockData[] = [];
+                    for (const block of blocks) {
+                      if (block.type !== "pending") {
+                        resolved.push(block);
+                        continue;
+                      }
+                      let asset = uploads.current.get(block.file);
+                      if (!asset) {
+                        asset = await ExerciseService.uploadAsset(block.file);
+                        uploads.current.set(block.file, asset);
+                      }
+                      resolved.push(
+                        asset.mimeType === "application/pdf"
+                          ? {
+                              type: "file",
+                              assetId: asset.id,
+                              name: asset.originalName,
+                            }
+                          : { type: "image", assetId: asset.id, caption: null },
+                      );
+                    }
+                    return resolved;
+                  };
+                  const resolved = {
+                    ...data,
+                    content: await resolveBlocks(data.content),
+                    solution: await resolveBlocks(data.solution),
+                  };
+                  exerciseRequestStarted = true;
+                  saveOutcomeUnknown.current = true;
                   if (mode === "edit" && exerciseId) {
-                    await ExerciseService.updateExercise(exerciseId, data);
+                    await ExerciseService.updateExercise(exerciseId, resolved);
                     toast.success("Zadanie zostało zaktualizowane");
                   } else {
-                    await ExerciseService.createExercise(data);
+                    await ExerciseService.createExercise(resolved);
                     toast.success("Zadanie zostało dodane");
+                  }
+                  saveOutcomeUnknown.current = false;
+                  const usedIds = new Set(
+                    [...resolved.content, ...resolved.solution].flatMap(
+                      (block) =>
+                        block.type === "image" || block.type === "file"
+                          ? [block.assetId]
+                          : [],
+                    ),
+                  );
+                  for (const [file, asset] of uploads.current) {
+                    if (usedIds.has(asset.id)) uploads.current.delete(file);
                   }
                   resolve({ success: true, data });
                 } catch (err) {
+                  if (
+                    exerciseRequestStarted &&
+                    err instanceof ApiError &&
+                    err.status >= 400 &&
+                    err.status < 500
+                  ) {
+                    saveOutcomeUnknown.current = previouslyUnknown;
+                  }
                   console.error("Exercise form submit error:", err);
-                  toast.error("Nie udało się zapisać zadania");
+                  toast.error(
+                    err instanceof Error
+                      ? err.message
+                      : "Nie udało się zapisać zadania",
+                    {
+                      description: saveOutcomeUnknown.current
+                        ? mode === "add"
+                          ? "Nie można potwierdzić, czy zadanie zostało zapisane. Sprawdź listę zadań przed ponowieniem, aby uniknąć duplikatu."
+                          : "Nie można potwierdzić, czy zmiany zostały zapisane. Sprawdź zadanie przed ponowieniem."
+                        : undefined,
+                      duration: saveOutcomeUnknown.current ? 15000 : undefined,
+                    },
+                  );
                   resolve({
                     success: false,
                     error: "Nie udało się zapisać zadania",
                   });
                 }
               },
-              // * Walidacja nie przeszła — informujemy, w których zakładkach szukać błędów
               () => {
                 toast.error("Formularz zawiera błędy", {
-                  description: "Sprawdź zakładki i popraw zaznaczone pola.",
+                  description: "Sprawdź etapy i popraw zaznaczone pola.",
                 });
                 resolve({ success: false, error: "Formularz zawiera błędy" });
               },
             )();
           }),
       }),
-      [handleSubmit, trigger, mode, exerciseId],
-    );
-
-    // * Liczba błędów per zakładka (czerwone kropki na nieaktywnych zakładkach)
-    const tabErrorCounts = useMemo<Record<FormTabId, number>>(
-      () => ({
-        info: [
-          errors.title,
-          errors.sourceTypeCode,
-          errors.exerciseTypeCode,
-          errors.categoryIds,
-          errors.points,
-        ].filter(Boolean).length,
-        content: errors.content ? 1 : 0,
-        solution: errors.solution ? 1 : 0,
-      }),
-      [errors],
+      [handleSubmit, trigger, mode, exerciseId, activeTab],
     );
 
     const isInfoTab = activeTab === "info";
+    const activeStep = FORM_TABS.findIndex((tab) => tab.id === activeTab);
 
     return (
       <FormProvider {...form}>
-        <Tabs
-          value={activeTab}
-          onValueChange={(value) => setActiveTab(value as FormTabId)}
-          className="w-full"
+        <fieldset
+          disabled={isSubmitting}
+          className={cn(
+            "min-w-0",
+            isSubmitting && "pointer-events-none opacity-70",
+          )}
         >
-          {/* * Nawigacja po zakładkach nad obiema kolumnami modala */}
-          <TabsList className="lg:sticky lg:top-0 lg:z-30 mx-auto mb-6 flex h-auto w-full flex-col rounded-xl border border-border/60 bg-background/95 p-1.5 shadow-sm backdrop-blur sm:flex-row sm:rounded-full">
-            {FORM_TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-              const errorCount = tabErrorCounts[tab.id];
-
-              return (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  className="h-11 w-full rounded-lg px-2 sm:rounded-full sm:px-4"
-                >
-                  <div className="flex items-center gap-2">
+          <div className="w-full">
+            <ol
+              aria-label="Etapy tworzenia zadania"
+              className="mb-6 flex items-center justify-center gap-1 border-b border-border/50 bg-background pb-4 sm:gap-3"
+            >
+              {FORM_TABS.map((tab, index) => {
+                const isActive = index === activeStep;
+                const completed = index < activeStep;
+                return (
+                  <li
+                    key={tab.id}
+                    aria-label={`${tab.step}. ${tab.label}${completed ? ", ukończony" : ""}`}
+                    aria-current={isActive ? "step" : undefined}
+                    className="flex min-w-0 items-center gap-1 sm:gap-3"
+                  >
+                    {index > 0 && (
+                      <span
+                        aria-hidden="true"
+                        className="hidden h-px w-8 bg-border sm:block lg:w-14"
+                      />
+                    )}
                     <span
                       className={cn(
-                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-colors",
+                        "flex items-center gap-2 rounded-full px-2 py-2 text-xs font-semibold sm:px-3",
                         isActive
-                          ? "bg-primary-foreground text-primary"
-                          : "bg-muted-foreground/20 text-muted-foreground",
+                          ? "border border-primary/25 bg-primary/5 text-primary shadow-sm"
+                          : "text-muted-foreground",
                       )}
-                      aria-hidden="true"
                     >
-                      {tab.step}
-                    </span>
-                    <span>{tab.label}</span>
-                    {/* * Licznik błędów — tekst dla czytników ekranu, nie tylko kolor */}
-                    {!isActive && errorCount > 0 && (
                       <span
-                        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white"
-                        aria-label={`Liczba błędów: ${errorCount}`}
+                        className={cn(
+                          "flex size-6 shrink-0 items-center justify-center rounded-full",
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : completed
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-muted text-muted-foreground",
+                        )}
                       >
-                        {errorCount}
+                        {completed ? (
+                          <Check className="size-4" aria-hidden="true" />
+                        ) : (
+                          tab.step
+                        )}
                       </span>
-                    )}
-                  </div>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
+                      <span
+                        className={cn(
+                          "hidden sm:inline",
+                          isActive && "inline!",
+                        )}
+                      >
+                        {tab.label}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
 
-          {/* * Grid: formularz po lewej, kontekstowy podgląd po prawej (poza zakładką „Dane”) */}
-          <div
-            className={cn(
-              "grid grid-cols-1 gap-8",
-              !isInfoTab && "lg:grid-cols-[minmax(0,1fr)_minmax(360px,550px)]",
-            )}
-          >
+            {/* * Grid: formularz po lewej, kontekstowy podgląd po prawej (poza zakładką „Dane”) */}
             <div
               className={cn(
-                "w-full space-y-6",
-                isInfoTab && "mx-auto max-w-4xl",
+                "grid grid-cols-1 gap-8",
+                !isInfoTab &&
+                  "lg:grid-cols-[minmax(0,1fr)_minmax(360px,550px)]",
               )}
             >
-              {/* * ZAKŁADKA 1: Dane zadania */}
-              {/* ! forceMount: pola (tagi, kategorie) pobierają dane w hookach — bez tego */}
-              {/* ! każdy powrót do zakładki odmontowywałby je i wywoływał refetch */}
-              <TabsContent
-                value="info"
-                forceMount
-                className="mt-0 data-[state=inactive]:hidden"
+              <div
+                className={cn(
+                  "w-full space-y-6",
+                  isInfoTab && "mx-auto max-w-4xl",
+                )}
               >
-                <ExerciseInfoFields />
-              </TabsContent>
+                <div hidden={activeTab !== "info"}>
+                  <ExerciseInfoFields />
+                </div>
 
-              {/* * ZAKŁADKA 2: Kreator treści */}
-              {/* ! forceMount utrzymuje wpisane bloki w pamięci przy przełączaniu zakładek */}
-              <TabsContent
-                value="content"
-                forceMount
-                className="mt-0 data-[state=inactive]:hidden"
-              >
-                <ExerciseBlockBuilder
-                  name="content"
-                  label="Treść zadania"
-                  required
-                />
-              </TabsContent>
+                <div hidden={activeTab !== "content"}>
+                  <ExerciseBlockBuilder
+                    name="content"
+                    label="Treść zadania"
+                    required
+                  />
+                </div>
 
-              {/* * ZAKŁADKA 3: Kreator rozwiązania */}
-              <TabsContent
-                value="solution"
-                forceMount
-                className="mt-0 data-[state=inactive]:hidden"
-              >
-                <ExerciseBlockBuilder
-                  name="solution"
-                  label="Rozwiązanie (Klucz odpowiedzi)"
-                />
-              </TabsContent>
+                <div hidden={activeTab !== "solution"}>
+                  <ExerciseBlockBuilder
+                    name="solution"
+                    label="Rozwiązanie (Klucz odpowiedzi)"
+                  />
+                </div>
+              </div>
+
+              {/* * PRAWA KOLUMNA: kontekstowy podgląd */}
+              <ExercisePreviewColumn
+                isVisible={!isInfoTab}
+                activeTab={activeTab}
+                watchedContent={watchedContent}
+                watchedSolution={watchedSolution ?? []}
+              />
             </div>
-
-            {/* * PRAWA KOLUMNA: kontekstowy podgląd */}
-            <ExercisePreviewColumn
-              isVisible={!isInfoTab}
-              activeTab={activeTab}
-              watchedContent={watchedContent}
-              watchedSolution={watchedSolution ?? []}
-            />
           </div>
-        </Tabs>
+        </fieldset>
       </FormProvider>
     );
   },

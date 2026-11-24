@@ -61,7 +61,7 @@ export function ExerciseRow({
     ...exercise.tags.map((tag) => ({ key: `tag-${tag.id}`, name: tag.name })),
   ];
 
-  const hasMenu = Boolean(onEdit || onDelete);
+  const hasMenu = exercise.isOwner && Boolean(onEdit || onDelete);
   const SourceIcon = SOURCE_TYPE_ICONS[exercise.sourceType];
 
   // * Kliknięcie w wiersz otwiera podgląd (onView) lub podstronę zadania

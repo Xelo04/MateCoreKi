@@ -27,6 +27,11 @@ interface TreeSelectProps {
   readonly className?: string;
   readonly icon?: ReactNode;
   readonly showFullPath?: boolean;
+  readonly counts?: ReadonlyMap<string, number>;
+  readonly rootCount?: number;
+  readonly countsLoading?: boolean;
+  readonly missingValueLabel?: string;
+  readonly ariaLabel?: string;
 }
 
 interface OptionRowProps {
@@ -37,6 +42,7 @@ interface OptionRowProps {
   readonly isExpanded: boolean;
   readonly onSelect: () => void;
   readonly onToggle: () => void;
+  readonly count?: number | null;
 }
 
 function OptionRow({
@@ -47,6 +53,7 @@ function OptionRow({
   isExpanded,
   onSelect,
   onToggle,
+  count,
 }: OptionRowProps) {
   return (
     <div
@@ -56,6 +63,7 @@ function OptionRow({
       className={cn(
         "flex w-full cursor-pointer items-center rounded-md px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring",
         isSelected && "bg-accent/50 font-medium",
+        count === 0 && "text-muted-foreground",
       )}
       style={{ paddingLeft: `${depth * 1.2 + 0.5}rem` }}
       onClick={onSelect}
@@ -88,6 +96,9 @@ function OptionRow({
         <span className="mr-1.5 h-4 w-4 shrink-0" aria-hidden="true" />
       )}
       <span className="flex-1 truncate">{label}</span>
+      {count !== undefined && (
+        <span className="ml-2">({count === null ? "..." : count})</span>
+      )}
       {isSelected && (
         <Check className="ml-2 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
       )}
@@ -105,6 +116,11 @@ export function TreeSelect({
   className,
   icon,
   showFullPath = false,
+  counts,
+  rootCount,
+  countsLoading = false,
+  missingValueLabel,
+  ariaLabel,
 }: TreeSelectProps) {
   const [open, setOpen] = useState(false);
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(
@@ -153,7 +169,7 @@ export function TreeSelect({
 
   const selectedName =
     selectedPath.length === 0
-      ? rootLabel
+      ? value !== null && missingValueLabel ? missingValueLabel : rootLabel
       : showFullPath
         ? selectedPath.map((item) => item.name).join("/")
         : selectedPath[selectedPath.length - 1].name;
@@ -175,6 +191,7 @@ export function TreeSelect({
         <div key={item.id}>
           <OptionRow
             label={item.name}
+            count={counts ? (countsLoading ? null : counts.get(item.id) ?? 0) : undefined}
             depth={depth}
             isSelected={value === item.id}
             isExpandable={children.length > 0}
@@ -201,6 +218,7 @@ export function TreeSelect({
           type="button"
           id={id}
           role="combobox"
+          aria-label={ariaLabel}
           aria-controls={popoverContentId}
           aria-expanded={open}
           className={cn(
@@ -228,6 +246,7 @@ export function TreeSelect({
         >
           <OptionRow
             label={rootLabel}
+            count={rootCount === undefined ? undefined : countsLoading ? null : rootCount}
             depth={0}
             isSelected={value === null}
             isExpandable={false}

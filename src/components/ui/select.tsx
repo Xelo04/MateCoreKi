@@ -114,8 +114,13 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  trailing,
+  indicatorClassName,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+}: React.ComponentProps<typeof SelectPrimitive.Item> & {
+  trailing?: React.ReactNode;
+  indicatorClassName?: string;
+}) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -125,12 +130,13 @@ function SelectItem({
       )}
       {...props}
     >
-      <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center">
+      <span className={cn("pointer-events-none absolute right-2 flex size-4 items-center justify-center", indicatorClassName)}>
         <SelectPrimitive.ItemIndicator>
           <CheckIcon className="pointer-events-none h-4 w-4" />
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      {trailing !== undefined && <span className="ml-auto shrink-0">{trailing}</span>}
     </SelectPrimitive.Item>
   );
 }

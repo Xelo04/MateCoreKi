@@ -1,0 +1,8 @@
+.mathField {
+  font-size: 1.75rem;
+}
+
+.mathField::part(menu-toggle),
+.mathField::part(virtual-keyboard-toggle) {
+  display: none;
+}

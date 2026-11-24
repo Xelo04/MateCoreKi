@@ -3,13 +3,14 @@
 // ==========================================
 // * Hooki zadań, tagów i kategorii. Wspólny wzorzec „fetch → loading →
 // * error → refetch” jest zaimplementowany RAZ (useServiceResource); publiczne
-// * hooki są cienkimi wrapperami z zachowaniem dotychczasowego API zwracanych pól.
-// * Mutacje przechodzą przez runMutation: toast + refetch listy po sukcesie.
+// * hooki udostępniają dane potrzebne widokom.
+// * Usunięcie zadania przechodzi przez runMutation: toast + refetch po sukcesie.
 
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ApiError } from "@/lib/api/api-errors";
 import { ExerciseService } from "./service";
 import type {
   CategoryNode,
@@ -17,7 +18,6 @@ import type {
   ExerciseListItem,
   Tag,
 } from "./types";
-import type { ExerciseFormData } from "./schema";
 
 // ==========================================
 // INFRASTRUKTURA: Generyczny zasób pobierany z serwisu
@@ -130,8 +130,10 @@ async function runMutation(
     onSuccess();
     return true;
   } catch (err) {
-    console.error(`${messages.logContext}:`, err);
-    toast.error(messages.error);
+    if (!(err instanceof ApiError && err.status < 500)) {
+      console.error(`${messages.logContext}:`, err);
+    }
+    toast.error(err instanceof ApiError && err.status === 409 ? err.message : messages.error);
     return false;
   }
 }
@@ -166,16 +168,6 @@ const CATEGORIES_MESSAGES: ResourceMessages = {
 };
 
 const EXERCISE_MUTATIONS = {
-  create: {
-    success: "Zadanie zostało dodane",
-    error: "Błąd dodawania zadania",
-    logContext: "Create exercise error",
-  },
-  update: {
-    success: "Zadanie zostało zaktualizowane",
-    error: "Błąd aktualizacji zadania",
-    logContext: "Update exercise error",
-  },
   remove: {
     success: "Zadanie zostało usunięte",
     error: "Błąd usuwania zadania",
@@ -192,29 +184,7 @@ export function useExercisesList() {
     ExerciseListItem[]
   >(loadExercisesList, [], EXERCISES_LIST_MESSAGES);
 
-  // * Tworzenie zadania; true = sukces (lista odświeżona)
-  const createExercise = useCallback(
-    (form: ExerciseFormData): Promise<boolean> =>
-      runMutation(
-        () => ExerciseService.createExercise(form),
-        EXERCISE_MUTATIONS.create,
-        refetch,
-      ),
-    [refetch],
-  );
-
-  // * Aktualizacja zadania; true = sukces
-  const updateExercise = useCallback(
-    (id: string, form: ExerciseFormData): Promise<boolean> =>
-      runMutation(
-        () => ExerciseService.updateExercise(id, form),
-        EXERCISE_MUTATIONS.update,
-        refetch,
-      ),
-    [refetch],
-  );
-
-  // * Usuwanie zadania (serwis czyści też referencje z zestawów); true = sukces
+  // * Usuwanie zadania; backend może je zablokować z powodu użycia w zestawie.
   const deleteExercise = useCallback(
     (id: string): Promise<boolean> =>
       runMutation(
@@ -230,8 +200,6 @@ export function useExercisesList() {
     isLoading,
     error,
     refetch,
-    createExercise,
-    updateExercise,
     deleteExercise,
   };
 }
@@ -257,42 +225,35 @@ export function useExerciseDetails(id: string) {
 // ? w filtrze tagów widoku listy dopiero po jego ponownym zamontowaniu.
 
 export function useTags() {
-  const { data, isLoading, setData } = useServiceResource<Tag[]>(
+  const { data, isLoading, error, refetch, setData } = useServiceResource<Tag[]>(
     loadTags,
     [],
     TAGS_MESSAGES,
   );
 
-  // * Tworzy tag i dodaje go do lokalnej listy. Serwis zwraca istniejący tag dla duplikatu —
-  // * wtedy nie dodajemy go drugi raz (kolizja `key`) i informujemy użytkownika.
+  // * Konflikt nazwy jest zwracany przez API, a nie rozstrzygany na podstawie innych tagów.
   const createTag = useCallback(
     async (name: string): Promise<Tag | null> => {
       try {
         const tag = await ExerciseService.createTag(name);
-        const isAlreadyListed = data.some((existing) => existing.id === tag.id);
-
         setData((previous) =>
           previous.some((existing) => existing.id === tag.id)
             ? previous
             : [...previous, tag],
         );
 
-        if (isAlreadyListed) {
-          toast.info(`Tag „${tag.name}” już istnieje`);
-        } else {
-          toast.success(`Dodano tag „${tag.name}”`);
-        }
+        toast.success(`Dodano tag „${tag.name}”`);
         return tag;
       } catch (err) {
-        console.error("Create tag error:", err);
-        toast.error("Błąd tworzenia tagu");
+        if (!(err instanceof ApiError && err.status < 500)) console.error("Create tag error:", err);
+        toast.error(err instanceof ApiError && err.status === 409 ? err.message : "Błąd tworzenia tagu");
         return null;
       }
     },
-    [data, setData],
+    [setData],
   );
 
-  return { tags: data, isLoading, createTag };
+  return { tags: data, isLoading, error, refetch, createTag };
 }
 
 // ==========================================
@@ -301,13 +262,13 @@ export function useTags() {
 // * Pobierane raz na zamontowanie komponentu; używane przez formularze i filtry działów.
 
 export function useCategoriesTree() {
-  const { data, isLoading } = useServiceResource<CategoryNode[]>(
+  const { data, isLoading, error, refetch } = useServiceResource<CategoryNode[]>(
     loadCategoriesTree,
     [],
     CATEGORIES_MESSAGES,
   );
 
-  return { tree: data, isLoading };
+  return { tree: data, isLoading, error, refetch };
 }
 
 // ==========================================
@@ -316,7 +277,7 @@ export function useCategoriesTree() {
 // * Pobiera pełne zadania dla podanych ID RÓWNOLEGLE i trzyma je w cache'u instancji.
 // * Używany przez podgląd zestawu w kreatorze (zastępuje pobieranie N+1 w każdym elemencie).
 // * `ids` musi być stabilną referencją (useMemo); `isEnabled=false` wstrzymuje pobieranie.
-// ? Nieudane ID nie są ponawiane w obrębie życia komponentu (element można usunąć z zestawu).
+// * Ponowienie i unieważnienie zadania usuwają jego wynik z cache'u.
 
 export function useExerciseDetailsMap(
   ids: readonly string[],
@@ -329,8 +290,9 @@ export function useExerciseDetailsMap(
     () => new Set(),
   );
 
-  // * ID, o które już zapytaliśmy (zapobiega dublowaniu requestów między renderami)
-  const requestedIdsRef = useRef<Set<string>>(new Set());
+  const [fetchKey, setFetchKey] = useState(0);
+  // * Token żądania chroni cache przed odpowiedzią sprzed unieważnienia.
+  const requestedIdsRef = useRef<Map<string, symbol>>(new Map());
   const isMountedRef = useRef(false);
 
   // * Znacznik zamontowania — chroni przed zapisem stanu po odmontowaniu.
@@ -347,14 +309,18 @@ export function useExerciseDetailsMap(
   useEffect(() => {
     if (!isEnabled) return;
 
-    const missingIds = ids.filter((id) => !requestedIdsRef.current.has(id));
+    const missingIds = [...new Set(ids)].filter((id) => !requestedIdsRef.current.has(id));
     if (missingIds.length === 0) return;
 
-    missingIds.forEach((id) => requestedIdsRef.current.add(id));
+    const requests = missingIds.map((id) => {
+      const token = Symbol(id);
+      requestedIdsRef.current.set(id, token);
+      return { id, token };
+    });
 
     async function loadMissing() {
       const results = await Promise.allSettled(
-        missingIds.map((id) => ExerciseService.getExercise(id)),
+        requests.map(({ id }) => ExerciseService.getExercise(id)),
       );
       if (!isMountedRef.current) return;
 
@@ -362,7 +328,8 @@ export function useExerciseDetailsMap(
       const failed = new Set<string>();
 
       results.forEach((result, index) => {
-        const id = missingIds[index];
+        const { id, token } = requests[index];
+        if (requestedIdsRef.current.get(id) !== token) return;
         if (result.status === "fulfilled" && result.value) {
           loaded.set(id, result.value);
           return;
@@ -380,7 +347,23 @@ export function useExerciseDetailsMap(
     }
 
     void loadMissing();
-  }, [ids, isEnabled]);
+  }, [ids, isEnabled, fetchKey]);
 
-  return { details, failedIds };
+  // * Ponawia błąd lub unieważnia stary wynik; pobranie ruszy, gdy podgląd jest aktywny.
+  const invalidateDetail = useCallback((id: string) => {
+    requestedIdsRef.current.delete(id);
+    setDetails((previous) => {
+      const next = new Map(previous);
+      next.delete(id);
+      return next;
+    });
+    setFailedIds((previous) => {
+      const next = new Set(previous);
+      next.delete(id);
+      return next;
+    });
+    setFetchKey((key) => key + 1);
+  }, []);
+
+  return { details, failedIds, invalidateDetail };
 }

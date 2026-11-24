@@ -69,23 +69,22 @@ export const EXERCISE_SOURCE_TYPE_LABELS: Record<ExerciseSourceType, string> = {
 // BLOKI TREŚCI (DISCRIMINATED UNIONS)
 // ==========================================
 
-/** Bloki w formie odbieranej z API (posiadają URL do wyświetlenia) */
+export type ExerciseTextStyle = "normal" | "intro" | "instruction";
+
 export type ApiExerciseBlock =
-  | { id: string; type: "text"; content: string }
-  | { id: string; type: "image"; url: string; asset_id: number }
-  | { id: string; type: "pdf"; url: string; asset_id: number };
+  | { type: "text"; text: string; style?: ExerciseTextStyle }
+  | { type: "image"; asset_id: number; caption?: string | null; url: string }
+  | { type: "file"; asset_id: number; name?: string | null; url: string };
 
-/** Bloki na potrzeby frontendu */
 export type ExerciseBlock =
-  | { id: string; type: "text"; content: string }
-  | { id: string; type: "image"; url: string; assetId: number }
-  | { id: string; type: "pdf"; url: string; assetId: number };
+  | { id: string; type: "text"; content: string; style: ExerciseTextStyle }
+  | { id: string; type: "image"; assetId: number; caption: string | null }
+  | { id: string; type: "file"; assetId: number; name: string | null };
 
-/** Bloki wysyłane do API (wymagają asset_id dla plików, nie url) */
 export type ExerciseBlockPayload =
-  | { id: string; type: "text"; content: string }
-  | { id: string; type: "image"; asset_id: number }
-  | { id: string; type: "pdf"; asset_id: number };
+  | { type: "text"; text: string; style: ExerciseTextStyle }
+  | { type: "image"; asset_id: number; caption: string | null }
+  | { type: "file"; asset_id: number; name: string | null };
 
 // ==========================================
 // ENTITY POMOCNICZE
@@ -102,11 +101,11 @@ export interface Tag {
 export interface Category {
   id: string;
   name: string;
-  parentId: string | null;
 }
 
 // * Węzeł drzewa kategorii (do renderowania hierarchii)
 export interface CategoryNode extends Category {
+  parentId: string | null;
   children: CategoryNode[];
 }
 
@@ -114,21 +113,51 @@ export interface CategoryNode extends Category {
 // DTO Z API
 // ==========================================
 
-export interface ApiExercise {
-  id: string;
+export interface ApiTag {
+  id: number;
+  name: string;
+  is_system: boolean;
+}
+
+export interface ApiCategoryRef {
+  id: number;
+  name: string;
+  path: string[];
+}
+
+export interface ApiCategoryNode {
+  id: number;
+  name: string;
+  slug: string;
+  children: ApiCategoryNode[];
+}
+
+export interface ApiExerciseListItem {
+  id: number;
   title: string;
-  source_type_code: ExerciseSourceType;
-  exercise_type_code: ExerciseType;
+  source_type: ExerciseSourceType;
+  exercise_type: ExerciseType;
   math_level: ExerciseMathLevel | null;
   difficulty: ExerciseDifficulty | null;
   points: number | null;
+  tags: ApiTag[];
+  categories: ApiCategoryRef[];
+  is_owner: boolean;
+  set_count: number;
+  has_solution: boolean;
+  updated_at: string;
+}
+
+export interface ApiExercisePage {
+  items: ApiExerciseListItem[];
+  total: number;
+}
+
+export interface ApiExercise extends Omit<ApiExerciseListItem, "has_solution"> {
   content: ApiExerciseBlock[];
   solution: ApiExerciseBlock[] | null;
   grading_rules_url: string | null;
-  tags: { id: string; name: string; is_global: boolean }[];
-  categories: { id: string; name: string; parent_id: string | null }[];
   created_at: string;
-  updated_at: string;
 }
 
 // ==========================================
@@ -148,6 +177,8 @@ export interface Exercise {
   gradingRulesUrl: string | null;
   tags: Tag[];
   categories: Category[];
+  isOwner: boolean;
+  setCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -167,6 +198,8 @@ export interface ExerciseListItem {
   tags: Tag[];
   categories: Category[];
   hasSolution: boolean;
+  isOwner: boolean;
+  setCount: number;
   updatedAt: Date;
 }
 
@@ -175,101 +208,13 @@ export interface ExerciseListItem {
 // ==========================================
 
 export interface ExerciseCreatePayload {
-  source_type_code: ExerciseSourceType;
-  exercise_type_code: ExerciseType;
+  exercise_type: ExerciseType;
   title: string;
   math_level: ExerciseMathLevel | null;
   difficulty: ExerciseDifficulty | null;
   points: number | null;
   content: ExerciseBlockPayload[];
   solution: ExerciseBlockPayload[] | null;
-  grading_rules_asset_id: number | null;
-  tag_ids: string[];
-  category_ids: string[];
+  tag_ids: number[];
+  category_ids: number[];
 }
-
-export type ExerciseUpdatePayload = Partial<ExerciseCreatePayload>;
-
-// ==========================================
-// MAPPERY
-// ==========================================
-
-/**
- * Mapuje blok pobrany z API na format frontendowy (camelCase).
- */
-const mapApiBlockToExerciseBlock = (
-  apiBlock: ApiExerciseBlock,
-): ExerciseBlock => {
-  if (apiBlock.type === "text") {
-    return { id: apiBlock.id, type: "text", content: apiBlock.content };
-  }
-  return {
-    id: apiBlock.id,
-    type: apiBlock.type,
-    url: apiBlock.url,
-    assetId: apiBlock.asset_id,
-  };
-};
-
-/**
- * Zmienia ApiExercise na obiekt używany w całej aplikacji (uwaga: tags i categories
- * muszą zostać dograne w warstwie serwisu na froncie, jeśli API zwraca tylko IDs).
- */
-export const mapApiExerciseToExercise = (api: ApiExercise): Exercise => {
-  return {
-    id: api.id,
-    sourceType: api.source_type_code,
-    exerciseType: api.exercise_type_code,
-    title: api.title,
-    mathLevel: api.math_level,
-    difficulty: api.difficulty,
-    points: api.points,
-    content: api.content.map(mapApiBlockToExerciseBlock),
-    solution: api.solution
-      ? api.solution.map(mapApiBlockToExerciseBlock)
-      : null,
-    gradingRulesUrl: api.grading_rules_url,
-    tags: api.tags.map((t) => ({
-      id: t.id,
-      name: t.name,
-      isGlobal: t.is_global,
-    })),
-    categories: api.categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      parentId: c.parent_id,
-    })),
-
-    createdAt: new Date(api.created_at),
-    updatedAt: new Date(api.updated_at),
-  };
-};
-
-/**
- * Mapuje bezpośrednio z formatu API na lekki model używany w liście zadań.
- */
-export const mapApiExerciseToListItem = (
-  api: ApiExercise,
-): ExerciseListItem => {
-  return {
-    id: api.id,
-    title: api.title,
-    difficulty: api.difficulty,
-    points: api.points,
-    mathLevel: api.math_level,
-    exerciseType: api.exercise_type_code,
-    sourceType: api.source_type_code,
-    tags: api.tags.map((t) => ({
-      id: t.id,
-      name: t.name,
-      isGlobal: t.is_global,
-    })),
-    categories: api.categories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      parentId: c.parent_id,
-    })),
-    hasSolution: (api.solution?.length ?? 0) > 0,
-    updatedAt: new Date(api.updated_at),
-  };
-};

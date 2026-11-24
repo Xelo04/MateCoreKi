@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -48,6 +48,7 @@ import {
   SOURCE_TYPE_ICON_COLORS,
   ALL_FILTER_VALUE,
   filterExercises,
+  getExerciseFacetCounts,
   getLabelEntries,
   hasActiveExerciseFilters,
   type ExerciseFilters,
@@ -70,14 +71,18 @@ import {
 interface ExerciseBrowserProps {
   readonly exercises: readonly ExerciseListItem[];
   readonly isLoading?: boolean;
+  readonly isCategoriesLoading?: boolean;
   readonly categoriesTree: readonly CategoryNode[];
   readonly excludedExerciseIds?: ReadonlySet<string>;
   readonly onEdit?: (id: string) => void;
   readonly onDelete?: (id: string) => void;
   readonly onAdd?: (id: string) => void;
   readonly onView?: (id: string) => void;
-  readonly searchQuery?: string;
-  readonly onSearchQueryChange?: (value: string) => void;
+  readonly filterState?: {
+    readonly filters: ExerciseFilters;
+    readonly setFilters: Dispatch<SetStateAction<ExerciseFilters>>;
+  };
+  readonly searchInHeader?: boolean;
   readonly headerAction?: React.ReactNode;
   readonly sectionTitle?: string;
   readonly filterAction?: React.ReactNode;
@@ -115,40 +120,40 @@ const LEGEND_LEVEL_LABELS: Record<ExerciseMathLevel, string> = {
 export function ExerciseBrowser({
   exercises,
   isLoading = false,
+  isCategoriesLoading = false,
   categoriesTree,
   excludedExerciseIds = EMPTY_ID_SET,
   onEdit,
   onDelete,
   onAdd,
   onView,
-  searchQuery,
-  onSearchQueryChange,
+  filterState,
+  searchInHeader = false,
   headerAction,
   sectionTitle,
   filterAction,
   listMode = "expandable",
-  initialLimit = 5,
+  initialLimit = 6,
   emptyMessage = "Brak zadań w bazie",
 }: ExerciseBrowserProps) {
-  const [filters, setFilters] = useState<ExerciseFilters>(
+  const [localFilters, setLocalFilters] = useState<ExerciseFilters>(
     DEFAULT_EXERCISE_FILTERS,
   );
+  const filters = filterState?.filters ?? localFilters;
+  const setFilters = filterState?.setFilters ?? setLocalFilters;
   const [showAll, setShowAll] = useState(false);
-  const [internalSearchQuery, setInternalSearchQuery] = useState("");
 
   // * Aktualizacja pojedynczego filtru bez rzutowań (klucz i wartość są spójne typowo)
   const updateFilter = useCallback(
     <K extends keyof ExerciseFilters>(key: K, value: ExerciseFilters[K]) => {
       setFilters((previous) => ({ ...previous, [key]: value }));
     },
-    [],
+    [setFilters],
   );
 
   const resetFilters = useCallback(() => {
     setFilters(DEFAULT_EXERCISE_FILTERS);
-    setInternalSearchQuery("");
-    onSearchQueryChange?.("");
-  }, [onSearchQueryChange]);
+  }, [setFilters]);
 
   // * Zadania dostępne = wszystkie bez wykluczonych (np. już dodanych do zestawu)
   const availableExercises = useMemo(
@@ -157,17 +162,17 @@ export function ExerciseBrowser({
   );
 
   // * Wynik filtrowania i sortowania (logika w utils.filterExercises)
-  const effectiveSearchQuery = searchQuery ?? internalSearchQuery;
-  const effectiveFilters = useMemo(
-    () => ({ ...filters, query: effectiveSearchQuery }),
-    [filters, effectiveSearchQuery],
-  );
   const filteredExercises = useMemo(
-    () => filterExercises(availableExercises, effectiveFilters, categoriesTree),
-    [availableExercises, effectiveFilters, categoriesTree],
+    () => filterExercises(availableExercises, filters, categoriesTree),
+    [availableExercises, filters, categoriesTree],
   );
+  const counts = useMemo(
+    () => getExerciseFacetCounts(availableExercises, filters, categoriesTree),
+    [availableExercises, filters, categoriesTree],
+  );
+  const countsLoading = isLoading || isCategoriesLoading;
 
-  const hasActiveFilters = hasActiveExerciseFilters(effectiveFilters);
+  const hasActiveFilters = hasActiveExerciseFilters(filters);
 
   const visibleExercises =
     listMode === "scrollable" || showAll
@@ -194,9 +199,9 @@ export function ExerciseBrowser({
       <div className="flex w-full flex-col gap-4">
         {/* * Wyszukiwarka jest w głównym nagłówku bazy; w builderze pozostaje tutaj. */}
         <div className="space-y-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-          {(!onSearchQueryChange || filterAction) && (
+          {(!searchInHeader || filterAction) && (
             <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row">
-              {!onSearchQueryChange && (
+              {!searchInHeader && (
                 <div className="relative min-w-0 flex-1">
                   <Search
                     className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -206,9 +211,9 @@ export function ExerciseBrowser({
                     aria-label="Szukaj zadań po tytule, dziale lub tagu"
                     placeholder="Szukaj po tytule, dziale lub tagu..."
                     className="h-11 w-full rounded-xl border-border/50 bg-card pl-10"
-                    value={effectiveSearchQuery}
+                    value={filters.query}
                     onChange={(event) =>
-                      setInternalSearchQuery(event.target.value)
+                      updateFilter("query", event.target.value)
                     }
                   />
                 </div>
@@ -220,6 +225,29 @@ export function ExerciseBrowser({
           {/* * Widoczna karta filtrów: szybkie wybory są segmentami, nie checkboxami. */}
           <div className="grid gap-4">
             <div className="grid gap-3 lg:grid-cols-3">
+              <Select
+                value={filters.level[0] ?? "all"}
+                onValueChange={(value) =>
+                  updateFilter(
+                    "level",
+                    value === "all" ? [] : [value as ExerciseMathLevel],
+                  )
+                }
+              >
+                <SelectTrigger aria-label="Poziom" className="h-11 w-full rounded-xl">
+                  <SelectValue>
+                    {filters.level[0]
+                      ? EXERCISE_MATH_LEVEL_LABELS[filters.level[0]]
+                      : "Wszystkie poziomy"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <FacetSelectItem value="all" label="Wszystkie poziomy" count={counts.allLevels} isLoading={countsLoading} />
+                  {getLabelEntries(EXERCISE_MATH_LEVEL_LABELS).map(([value, label]) => (
+                    <FacetSelectItem key={value} value={value} label={label} count={counts.levels.get(value) ?? 0} isLoading={countsLoading} />
+                  ))}
+                </SelectContent>
+              </Select>
               <TreeSelect
                 items={categoriesTree}
                 value={
@@ -232,6 +260,11 @@ export function ExerciseBrowser({
                 }
                 placeholder="Wybierz dział"
                 rootLabel="Wszystkie działy"
+                ariaLabel="Dział"
+                counts={counts.categories}
+                rootCount={counts.allCategories}
+                countsLoading={countsLoading}
+                missingValueLabel="Niedostępny dział"
                 className="w-full"
               />
               <Select
@@ -243,41 +276,18 @@ export function ExerciseBrowser({
                   )
                 }
               >
-                <SelectTrigger className="h-11 w-full rounded-xl">
-                  <SelectValue placeholder="Typ zadania" />
+                <SelectTrigger aria-label="Typ zadania" className="h-11 w-full rounded-xl">
+                  <SelectValue>
+                    {filters.type[0]
+                      ? EXERCISE_TYPE_LABELS[filters.type[0]]
+                      : "Wszystkie typy zadań"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Wszystkie typy zadań</SelectItem>
-                  {Object.entries(EXERCISE_TYPE_LABELS).map(
-                    ([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
-              <Select
-                value={filters.level[0] ?? "all"}
-                onValueChange={(value) =>
-                  updateFilter(
-                    "level",
-                    value === "all" ? [] : [value as ExerciseMathLevel],
-                  )
-                }
-              >
-                <SelectTrigger className="h-11 w-full rounded-xl">
-                  <SelectValue placeholder="Poziom" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Wszystkie poziomy</SelectItem>
-                  {Object.entries(EXERCISE_MATH_LEVEL_LABELS).map(
-                    ([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ),
-                  )}
+                  <FacetSelectItem value="all" label="Wszystkie typy zadań" count={counts.allTypes} isLoading={countsLoading} />
+                  {getLabelEntries(EXERCISE_TYPE_LABELS).map(([value, label]) => (
+                    <FacetSelectItem key={value} value={value} label={label} count={counts.types.get(value) ?? 0} isLoading={countsLoading} />
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -365,7 +375,7 @@ export function ExerciseBrowser({
       {/* ========================================== */}
       {/* LISTA ZADAŃ                                */}
       {/* ========================================== */}
-      {isLoading && exercises.length === 0 ? (
+      {(isLoading && exercises.length === 0) || isCategoriesLoading ? (
         <ContentLoader minHeight="h-[350px]" />
       ) : filteredExercises.length === 0 ? (
         // * Stan pusty (z podpowiedzią, gdy winne są aktywne filtry)
@@ -379,7 +389,7 @@ export function ExerciseBrowser({
           </p>
           {hasActiveFilters && (
             <p className="mt-1 text-sm text-muted-foreground">
-              Zmień lub wyczyść filtry, aby zobaczyć więcej zadań.
+              Zmień lub wyczyść filtry, aby zobaczyć więcej zadań
             </p>
           )}
         </div>
@@ -401,7 +411,6 @@ export function ExerciseBrowser({
               onView={onView}
               action={
                 onAdd ? (
-                  // * Okrągły „+” (tryb kreatora zestawu)
                   <Button
                     type="button"
                     variant="default"
@@ -420,7 +429,7 @@ export function ExerciseBrowser({
           {/* * Przełącznik „Pokaż wszystkie / Zwiń” (tylko tryb expandable) */}
           {listMode === "expandable" &&
             filteredExercises.length > initialLimit && (
-              <div className="flex justify-center pt-2">
+              <div className="flex justify-center pt-2 lg:col-span-2">
                 <Button
                   type="button"
                   variant="secondary"
@@ -441,6 +450,33 @@ export function ExerciseBrowser({
         </div>
       )}
     </section>
+  );
+}
+
+function FacetSelectItem({
+  value,
+  label,
+  count,
+  isLoading,
+}: {
+  readonly value: string;
+  readonly label: string;
+  readonly count: number;
+  readonly isLoading: boolean;
+}) {
+  return (
+    <SelectItem
+      value={value}
+      textValue={label}
+      indicatorClassName="text-primary"
+      trailing={<span aria-hidden="true">({isLoading ? "..." : count})</span>}
+      className={cn(
+        "pr-2 data-[state=checked]:pr-8",
+        !isLoading && count === 0 && "text-muted-foreground",
+      )}
+    >
+      {label}<span className="sr-only"> ({isLoading ? "..." : count})</span>
+    </SelectItem>
   );
 }
 
@@ -565,8 +601,6 @@ function getFilterPillHoverClass(value: string): string {
 // ==========================================
 // KOMPONENT WEWNĘTRZNY: Grupa legendy
 // ==========================================
-// * Nagłówek + elementy jako jeden niepodzielny blok. Gdy grupa nie mieści się
-// * w wierszu, przechodzi do następnego CAŁA (flex-wrap na poziomie grup).
 
 function LegendGroup({
   title,

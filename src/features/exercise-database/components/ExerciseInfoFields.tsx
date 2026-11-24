@@ -14,6 +14,7 @@ import { Check, Loader2, Plus, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ListStates";
 import {
   Select,
   SelectContent,
@@ -28,15 +29,11 @@ import { useCategoriesTree, useTags } from "../hook";
 import {
   EXERCISE_DIFFICULTY_LABELS,
   EXERCISE_MATH_LEVEL_LABELS,
-  EXERCISE_SOURCE_TYPE_LABELS,
   EXERCISE_TYPE_LABELS,
   type ExerciseDifficulty,
-  type ExerciseSourceType,
 } from "../types";
 import {
   DIFFICULTY_STYLES,
-  SOURCE_TYPE_ICONS,
-  SOURCE_TYPE_ICON_COLORS,
   filterAndSortTags,
   getLabelEntries,
   isLabelKey,
@@ -47,26 +44,6 @@ import { CollapsibleCategoryNode } from "./CollapsibleCategoryNode";
 // STAŁE: Style kafelków (specyficzne dla formularza)
 // ==========================================
 
-// * Ikony i kolory ikon źródła pochodzą z utils.ts; tu tylko stany aktywny/hover kafelka.
-// ! Pełne literały klas Tailwind — nie składać ich dynamicznie.
-const SOURCE_TILE_STYLES: Record<
-  ExerciseSourceType,
-  { readonly active: string; readonly hover: string }
-> = {
-  cke: {
-    active: "border-rose-500 bg-rose-500/10 text-rose-600",
-    hover: "hover:border-rose-400 hover:bg-rose-500/5",
-  },
-  tutor: {
-    active: "border-blue-500 bg-blue-500/10 text-blue-600",
-    hover: "hover:border-blue-400 hover:bg-blue-500/5",
-  },
-  generated: {
-    active: "border-purple-500 bg-purple-500/10 text-purple-600",
-    hover: "hover:border-purple-400 hover:bg-purple-500/5",
-  },
-};
-
 // * Kropka trudności pochodzi z DIFFICULTY_STYLES; tu tylko aktywne obramowanie kafelka.
 const DIFFICULTY_TILE_ACTIVE: Record<ExerciseDifficulty, string> = {
   easy: "border-emerald-500 bg-emerald-500/10",
@@ -75,71 +52,6 @@ const DIFFICULTY_TILE_ACTIVE: Record<ExerciseDifficulty, string> = {
 };
 
 const TAG_SEARCH_DEBOUNCE_MS = 250;
-
-// ==========================================
-// POLE: Źródło zadania (kafelki)
-// ==========================================
-
-function SourceTypeField() {
-  const {
-    control,
-    formState: { errors },
-  } = useFormContext<ExerciseFormData>();
-
-  return (
-    <div className="space-y-1.5">
-      <Label id="ex-source-label">
-        Źródło <span className="text-destructive">*</span>
-      </Label>
-      <Controller
-        control={control}
-        name="sourceTypeCode"
-        render={({ field }) => (
-          // * Grupa kafelków wyboru źródła (CKE / Własne / AI)
-          <div
-            role="group"
-            aria-labelledby="ex-source-label"
-            className="grid h-32 grid-cols-3 gap-2"
-          >
-            {getLabelEntries(EXERCISE_SOURCE_TYPE_LABELS).map(
-              ([code, label]) => {
-                const Icon = SOURCE_TYPE_ICONS[code];
-                const isActive = field.value === code;
-
-                return (
-                  <button
-                    key={code}
-                    type="button"
-                    aria-pressed={isActive}
-                    onClick={() => field.onChange(code)}
-                    className={cn(
-                      "flex h-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-border/60 bg-card p-3 text-xs font-semibold transition-colors",
-                      SOURCE_TILE_STYLES[code].hover,
-                      isActive
-                        ? `${SOURCE_TILE_STYLES[code].active} shadow-md`
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    <Icon
-                      className={cn("h-7 w-7", SOURCE_TYPE_ICON_COLORS[code])}
-                      aria-hidden="true"
-                    />
-                    {label}
-                  </button>
-                );
-              },
-            )}
-          </div>
-        )}
-      />
-      {errors.sourceTypeCode && (
-        <p className="text-xs text-destructive">
-          {errors.sourceTypeCode.message}
-        </p>
-      )}
-    </div>
-  );
-}
 
 // ==========================================
 // POLE: Trudność (kafelki; ponowne kliknięcie czyści wybór)
@@ -210,7 +122,7 @@ function CategoriesField({
     control,
     formState: { errors },
   } = useFormContext<ExerciseFormData>();
-  const { tree } = useCategoriesTree();
+  const { tree, isLoading, error, refetch } = useCategoriesTree();
   const selectedIds = useWatch({ control, name: "categoryIds" });
 
   return (
@@ -219,7 +131,11 @@ function CategoriesField({
         Działy nauki <span className="text-destructive">*</span>
       </Label>
       <div className="max-h-72 overflow-y-auto rounded-xl border border-border/50 bg-card p-3">
-        {tree.length > 0 ? (
+        {error ? (
+          <ErrorState message={error} onRetry={refetch} />
+        ) : isLoading ? (
+          <p role="status" className="p-2 text-sm">Ładowanie działów...</p>
+        ) : tree.length > 0 ? (
           tree.map((node) => (
             <CollapsibleCategoryNode
               key={node.id}
@@ -252,8 +168,8 @@ function TagsField({
 }: {
   readonly onToggle: (tagId: string, checked: boolean) => void;
 }) {
-  const { control } = useFormContext<ExerciseFormData>();
-  const { tags, createTag } = useTags();
+  const { control, formState: { errors } } = useFormContext<ExerciseFormData>();
+  const { tags, isLoading, error, refetch, createTag } = useTags();
   const selectedIds = useWatch({ control, name: "tagIds" });
 
   const [newTagName, setNewTagName] = useState("");
@@ -276,7 +192,7 @@ function TagsField({
   // * Tworzy tag i od razu go zaznacza. Błędy toastuje hook (createTag zwraca null).
   const handleCreateTag = async () => {
     const trimmed = newTagName.trim();
-    if (!trimmed || isCreatingTag) return;
+    if (!trimmed || isCreatingTag || isLoading || error) return;
 
     setIsCreatingTag(true);
     try {
@@ -324,7 +240,21 @@ function TagsField({
       <div className="rounded-xl border border-border/50 bg-card p-3">
         {/* * Lista tagów jako przełączniki (aria-pressed) */}
         <div className="flex flex-wrap gap-2">
-          {visibleTags.map((tag) => {
+          {isLoading ? (
+            <div role="status" className="w-full space-y-3 py-1">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                Ładowanie tagów...
+              </span>
+              <div className="flex flex-wrap gap-2 motion-safe:animate-pulse" aria-hidden="true">
+                <span className="h-8 w-20 rounded-full bg-muted" />
+                <span className="h-8 w-28 rounded-full bg-muted" />
+                <span className="h-8 w-24 rounded-full bg-muted" />
+                <span className="h-8 w-16 rounded-full bg-muted" />
+              </div>
+            </div>
+          ) : error ? <ErrorState message={error} onRetry={refetch} /> : (
+            visibleTags.map((tag) => {
             const isSelected = selectedIds.includes(tag.id);
 
             return (
@@ -354,19 +284,22 @@ function TagsField({
                 {tag.name}
               </button>
             );
-          })}
-          {visibleTags.length === 0 && (
+            })
+          )}
+          {!error && !isLoading && visibleTags.length === 0 && (
             <p className="w-full py-2 text-sm text-muted-foreground">
               Nie znaleziono tagów dla „{tagSearch}”.
             </p>
           )}
         </div>
+        {errors.tagIds && <p role="alert" className="mt-2 text-sm text-destructive">{errors.tagIds.message}</p>}
 
         {/* * Tworzenie nowego tagu inline (Enter lub przycisk) */}
         <div className="mt-3 flex gap-2 border-t border-border/30 pt-3">
           <Input
             aria-label="Nazwa nowego tagu"
             placeholder="Nowy tag..."
+            maxLength={30}
             value={newTagName}
             onChange={(event) => setNewTagName(event.target.value)}
             onKeyDown={(event) => {
@@ -381,11 +314,12 @@ function TagsField({
           <Button
             type="button"
             onClick={() => void handleCreateTag()}
-            disabled={!newTagName.trim() || isCreatingTag}
+            disabled={!newTagName.trim() || isCreatingTag || isLoading || Boolean(error)}
+            aria-label={isLoading ? "Ładowanie tagów" : isCreatingTag ? "Dodawanie tagu" : "Dodaj tag"}
             className="h-11 shrink-0 rounded-full bg-primary px-4 text-primary-foreground hover:bg-primary/90"
           >
-            {isCreatingTag ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            {isCreatingTag || isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
             ) : (
               <Plus className="h-4 w-4" aria-hidden="true" />
             )}
@@ -458,9 +392,6 @@ export function ExerciseInfoFields() {
 
       {/* * Sekcja: Atrybuty zadania */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-x-6 lg:gap-y-5">
-        <SourceTypeField />
-
-        <div className="space-y-5">
           {/* * Typ zadania (wymagany) */}
           <div className="space-y-1.5">
             <Label>
@@ -540,8 +471,6 @@ export function ExerciseInfoFields() {
               )}
             />
           </div>
-        </div>
-
         <DifficultyField />
 
         {/* * Punkty (puste pole = null; niepoprawna liczba odrzucana przez schemat) */}
@@ -552,7 +481,7 @@ export function ExerciseInfoFields() {
               id="ex-points"
               type="number"
               min={0}
-              max={999}
+              max={100}
               placeholder="0"
               className="rounded-xl pr-16 text-base font-semibold"
               {...register("points", {

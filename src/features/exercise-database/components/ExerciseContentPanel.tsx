@@ -98,11 +98,13 @@ export function SolutionToggleButton({
   onToggle,
   showLabel = "Pokaż rozwiązanie",
   hideLabel = "Ukryj rozwiązanie",
+  className,
 }: {
   readonly isVisible: boolean;
   readonly onToggle: () => void;
   readonly showLabel?: string;
   readonly hideLabel?: string;
+  readonly className?: string;
 }) {
   return (
     <Button
@@ -113,6 +115,7 @@ export function SolutionToggleButton({
       className={cn(
         "h-11 rounded-xl font-semibold shadow-sm transition-colors",
         !isVisible && "bg-amber-500 text-white hover:bg-amber-600",
+        className,
       )}
     >
       <Lightbulb

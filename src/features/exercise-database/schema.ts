@@ -9,11 +9,9 @@ import { z } from "zod";
 import {
   EXERCISE_DIFFICULTY_LABELS,
   EXERCISE_MATH_LEVEL_LABELS,
-  EXERCISE_SOURCE_TYPE_LABELS,
   EXERCISE_TYPE_LABELS,
   type ExerciseDifficulty,
   type ExerciseMathLevel,
-  type ExerciseSourceType,
   type ExerciseType,
 } from "./types";
 
@@ -21,10 +19,8 @@ import {
 // STAŁE: Limity plików
 // ==========================================
 
-// * Jedno źródło prawdy dla limitów — używane przez schemat, ExerciseBlockBuilder i actions.ts
+// * Limit odpowiada domyślnemu limitowi przesyłania plików backendu.
 export const EXERCISE_FILE_LIMITS = {
-  // * Maksymalna liczba plików (obrazy + PDF) w jednej sekcji (treść LUB rozwiązanie)
-  maxFilesPerSection: 5,
   maxFileSizeBytes: 10 * 1024 * 1024,
 } as const;
 
@@ -54,38 +50,33 @@ export const exerciseBlockFormSchema = z.discriminatedUnion("type", [
     type: z.literal("text"),
     content: z
       .string()
-      .trim()
-      .min(1, "Treść tekstu nie może być pusta")
+      .refine((value) => value.trim().length > 0, "Treść tekstu nie może być pusta")
       .max(10_000, "Maksymalnie 10 000 znaków"),
+    style: z.enum(["normal", "intro", "instruction"]),
   }),
   z.object({
     id: z.string().optional(),
     type: z.literal("image"),
-    url: z.string().min(1, "Brak adresu pliku"),
-    assetId: z.number().int(),
+    assetId: z.number().int().positive(),
+    caption: z.string().max(300).nullable(),
   }),
   z.object({
     id: z.string().optional(),
-    type: z.literal("pdf"),
-    url: z.string().min(1, "Brak adresu pliku"),
-    assetId: z.number().int(),
+    type: z.literal("file"),
+    assetId: z.number().int().positive(),
+    name: z.string().max(255).nullable(),
+  }),
+  z.object({
+    id: z.string().optional(),
+    type: z.literal("pending"),
+    file: z.custom<File>((value) => typeof File !== "undefined" && value instanceof File, "Wybierz plik"),
   }),
 ]);
 
 export type ExerciseFormBlockData = z.infer<typeof exerciseBlockFormSchema>;
 
-// * Lista bloków z limitem plików. Błąd limitu trafia do errors.<pole>.root.message,
-// * skąd odczytuje go ExerciseBlockBuilder.
-const exerciseBlockListSchema = z
-  .array(exerciseBlockFormSchema)
-  .refine(
-    (blocks) =>
-      blocks.filter((block) => block.type !== "text").length <=
-      EXERCISE_FILE_LIMITS.maxFilesPerSection,
-    {
-      message: `Maksymalnie ${EXERCISE_FILE_LIMITS.maxFilesPerSection} plików w sekcji`,
-    },
-  );
+// * Każda sekcja ma limit liczby bloków zgodny z API.
+const exerciseBlockListSchema = z.array(exerciseBlockFormSchema).max(100, "Maksymalnie 100 bloków w sekcji");
 
 // ==========================================
 // SCHEMA: Formularz zadania (ExerciseForm)
@@ -97,10 +88,6 @@ export const exerciseFormSchema = z.object({
     .trim()
     .min(1, "Tytuł jest wymagany")
     .max(200, "Maksymalnie 200 znaków"),
-  sourceTypeCode: labelKeySchema<ExerciseSourceType>(
-    EXERCISE_SOURCE_TYPE_LABELS,
-    "Wybierz źródło zadania",
-  ),
   exerciseTypeCode: labelKeySchema<ExerciseType>(
     EXERCISE_TYPE_LABELS,
     "Wybierz typ zadania",
@@ -118,10 +105,10 @@ export const exerciseFormSchema = z.object({
     .number({ message: "Punkty muszą być liczbą" })
     .int("Punkty muszą być liczbą całkowitą")
     .min(0, "Punkty nie mogą być ujemne")
-    .max(999, "Maksymalnie 999 punktów")
+    .max(100, "Maksymalnie 100 punktów")
     .nullable(),
-  tagIds: z.array(z.string()).default([]),
-  categoryIds: z.array(z.string()).min(1, "Wybierz co najmniej jeden dział"),
+  tagIds: z.array(z.string()).max(7, "Wybierz maksymalnie 7 tagów").default([]),
+  categoryIds: z.array(z.string()).min(1, "Wybierz co najmniej jeden dział").max(10, "Wybierz maksymalnie 10 działów"),
   content: exerciseBlockListSchema.min(
     1,
     "Dodaj przynajmniej jeden blok treści zadania",

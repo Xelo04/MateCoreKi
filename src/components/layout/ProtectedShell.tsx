@@ -16,7 +16,13 @@ import { ChangePassword } from "@/features/auth/views/ChangePassword";
 import type { AuthSession } from "@/features/auth/types";
 import { InitialSessionContext } from "@/store/use-session-store";
 
-export function ProtectedShell({ children, initialSession }: { children: React.ReactNode; initialSession: AuthSession }) {
+export function ProtectedShell({
+  children,
+  initialSession,
+}: {
+  children: React.ReactNode;
+  initialSession: AuthSession;
+}) {
   return (
     <InitialSessionContext.Provider value={initialSession}>
       <ProtectedContent>{children}</ProtectedContent>
@@ -42,8 +48,12 @@ function ProtectedContent({ children }: { children: React.ReactNode }) {
         <div className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 text-xs sm:text-sm md:hidden">
           <MobileNavigation />
           <div className="flex items-center justify-end gap-3">
-            <button type="button" onClick={() => setChangePasswordOpen(true)}>Zmień hasło</button>
-            <button type="button" onClick={() => void logout()}>Wyloguj się</button>
+            <button type="button" onClick={() => setChangePasswordOpen(true)}>
+              Zmień hasło
+            </button>
+            <button type="button" onClick={() => void logout()}>
+              Wyloguj się
+            </button>
           </div>
         </div>
         <div className="mx-auto max-w-6xl w-full p-4 sm:p-8">{children}</div>
@@ -58,8 +68,12 @@ function ProtectedContent({ children }: { children: React.ReactNode }) {
         hideFooter
         hasDescription
       >
-        <DialogDescription className="sr-only">Podaj obecne hasło oraz nowe hasło i jego potwierdzenie.</DialogDescription>
-        {changePasswordOpen && <ChangePassword onSuccess={() => setChangePasswordOpen(false)} />}
+        <DialogDescription className="sr-only">
+          Podaj obecne hasło oraz nowe hasło i jego potwierdzenie.
+        </DialogDescription>
+        {changePasswordOpen && (
+          <ChangePassword onSuccess={() => setChangePasswordOpen(false)} />
+        )}
       </ModalShell>
     </div>
   );

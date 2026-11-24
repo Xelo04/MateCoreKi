@@ -1,104 +1,111 @@
 // ==========================================
-// KOMPONENT: Renderowanie bloków treści
+// KOMPONENT: Renderowanie treści zadania
 // ==========================================
-// * Jedyny renderer bloków (tekst / obraz / PDF). Używany w widoku szczegółów,
-// * w kreatorze zestawu oraz w kolumnie podglądu formularza (size="compact").
-// * Przyjmuje minimalny, strukturalny typ bloku — pasuje i do ExerciseBlock,
-// * i do ExerciseFormBlockData (bez importowania typów Api*).
 
 "use client";
 
+import katex from "katex";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { decodeMathContent } from "../math-content";
 import { LazyPdfPreview } from "./LazyPdfPreview";
-
-// ==========================================
-// TYPY
-// ==========================================
+import "katex/dist/katex.min.css";
 
 export type RenderableBlock =
-  | {
-      readonly id?: string;
-      readonly type: "text";
-      readonly content: string;
+  | { readonly id?: string; readonly type: "text"; readonly content: string }
+  | { readonly id?: string; readonly type: "image"; readonly assetId: number; readonly caption?: string | null }
+  | { readonly id?: string; readonly type: "file"; readonly assetId: number; readonly name?: string | null }
+  | { readonly id?: string; readonly type: "pending"; readonly file: File };
+
+export function MathDisplay({ latex }: { readonly latex: string }) {
+  return <span ref={(element) => {
+    if (!element) return;
+    try {
+      katex.render(latex, element, { throwOnError: true, trust: false });
+      element.removeAttribute("role");
+    } catch (err) {
+      console.error("Nie udało się wyświetlić wzoru matematycznego:", err instanceof Error ? err.name : "Nieznany błąd");
+      element.setAttribute("role", "alert");
+      element.textContent = "Nie można wyświetlić wzoru.";
     }
-  | {
-      readonly id?: string;
-      readonly type: "image" | "pdf";
-      readonly url: string;
-    };
-
-// * comfortable — widok szczegółów (text-base); compact — panel podglądu formularza (text-sm)
-type ContentSize = "comfortable" | "compact";
-
-interface ExerciseContentRendererProps {
-  readonly blocks: readonly RenderableBlock[];
-  readonly emptyMessage?: string;
-  readonly size?: ContentSize;
+  }} />;
 }
 
-// ==========================================
-// KOMPONENT
-// ==========================================
+function TextBlock({ content }: { readonly content: string }) {
+  const parts = decodeMathContent(content);
+  return (
+    <p className="whitespace-pre-wrap leading-relaxed text-foreground/90">
+      {parts.map((part, index) =>
+        part.type === "text"
+          ? <span key={index}>{part.text}</span>
+          : <MathDisplay key={index} latex={part.latex} />,
+      )}
+    </p>
+  );
+}
+
+function AttachmentImage({ src, caption }: { readonly src: string; readonly caption: string | null }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <figure className="space-y-2">
+      {failed ? (
+        <p role="alert" className="text-sm text-destructive">Nie udało się wczytać obrazu.</p>
+      ) : (
+        // * Pliki wymagają ciasteczka sesji; optymalizator Next.js go nie przekazuje.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={caption || "Obraz do zadania"} className="h-auto w-full max-w-4xl rounded-xl border border-border/20 shadow-sm" onError={() => setFailed(true)} />
+      )}
+      {caption && <figcaption className="text-sm text-muted-foreground">{caption}</figcaption>}
+    </figure>
+  );
+}
+
+export function isPdfFile(file: File): boolean {
+  return file.type === "application/pdf" ||
+    (!["image/png", "image/jpeg", "image/webp"].includes(file.type) && /\.pdf$/i.test(file.name));
+}
+
+function PendingImage({ file }: { readonly file: File }) {
+  const imageRef = useRef<HTMLImageElement>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!imageRef.current) return;
+    const image = imageRef.current;
+    const objectUrl = URL.createObjectURL(file);
+    image.src = objectUrl;
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return failed
+    ? <p role="alert" className="text-sm text-destructive">Nie udało się wczytać obrazu.</p>
+    // eslint-disable-next-line @next/next/no-img-element
+    : <img ref={imageRef} alt={file.name} className="h-auto w-full max-w-3xl rounded-md border border-border/20 shadow-sm" onError={() => setFailed(true)} />;
+}
 
 export function ExerciseContentRenderer({
   blocks,
   emptyMessage = "Brak treści.",
   size = "comfortable",
-}: ExerciseContentRendererProps) {
-  const isCompact = size === "compact";
-
-  // * Stan pusty — komunikat zamiast pustego kontenera
+}: {
+  readonly blocks: readonly RenderableBlock[];
+  readonly emptyMessage?: string;
+  readonly size?: "comfortable" | "compact";
+}) {
   if (blocks.length === 0) {
-    return (
-      <p className="text-sm italic text-muted-foreground/60">{emptyMessage}</p>
-    );
+    return <p className="text-sm italic text-muted-foreground/60">{emptyMessage}</p>;
   }
-
   return (
-    <div
-      className={cn(
-        "flex w-full flex-col",
-        isCompact ? "space-y-4" : "space-y-6",
-      )}
-    >
+    <div className={cn("flex w-full flex-col", size === "compact" ? "space-y-4 text-sm" : "space-y-6 text-base")}>
       {blocks.map((block, index) => {
-        // * Klucz: bloki z formularza mogą nie mieć jeszcze id — wtedy używamy indeksu
         const key = `${block.type}-${block.id ?? index}`;
-
-        // * Blok tekstowy (pusty tekst pomijamy — nic do pokazania)
-        if (block.type === "text") {
-          if (!block.content) return null;
-          return (
-            <p
-              key={key}
-              className={cn(
-                "whitespace-pre-wrap leading-relaxed text-foreground/90",
-                isCompact ? "text-sm" : "text-base",
-              )}
-            >
-              {block.content}
-            </p>
-          );
-        }
-
-        // * Blok obrazkowy
-        if (block.type === "image") {
-          return (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={key}
-              src={block.url}
-              alt="Załącznik obrazkowy"
-              className={cn(
-                "h-auto w-full border border-border/20 shadow-sm",
-                isCompact ? "max-w-3xl rounded-md" : "max-w-4xl rounded-xl",
-              )}
-            />
-          );
-        }
-
-        // * Blok PDF (ładowany leniwie, bez SSR)
-        return <LazyPdfPreview key={key} url={block.url} />;
+        if (block.type === "text") return <TextBlock key={key} content={block.content} />;
+        if (block.type === "pending") return isPdfFile(block.file)
+          ? <LazyPdfPreview key={key} file={block.file} />
+          : <PendingImage key={key} file={block.file} />;
+        const url = `/api/backend/api/v1/assets/${block.assetId}`;
+        if (block.type === "image") return (
+          <AttachmentImage key={`${key}-${url}`} src={url} caption={block.caption ?? null} />
+        );
+        return <LazyPdfPreview key={key} file={url} />;
       })}
     </div>
   );

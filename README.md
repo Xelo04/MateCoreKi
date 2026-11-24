@@ -18,8 +18,7 @@ przywrócenie sesji przez przeglądarkę może zachować ciasteczko po jej zamkn
 Obecnie panel jest dostępny wyłącznie dla roli `tutor`. JWT jest bezstanowy:
 wylogowanie usuwa lokalną sesję, ale samo nie unieważnia wydanego tokena.
 Backend odpowiada za egzekwowanie uprawnień, czasu życia tokenów i ograniczanie
-prób logowania. Dostęp do plików przez ciasteczko backendu wymaga oddzielnej
-integracji. Reset hasła i Google OAuth nie są jeszcze dostępne.
+prób logowania. Reset hasła i Google OAuth nie są jeszcze dostępne.
 
 Zalogowany użytkownik otwiera zmianę hasła w modalu panelu. Jeśli backend
 wymaga zmiany hasła, dostęp do panelu jest zablokowany i formularz pojawia
@@ -45,12 +44,49 @@ logowania ma osobną obsługę ustawiania i usuwania ciasteczka.
 Pośrednik dopuszcza wyłącznie określone ścieżki i metody z kontraktu API.
 Dodając nowy endpoint, należy zaktualizować listę w
 `src/lib/api/backend-proxy.ts` oraz testy. Obsługiwane są żądania
-JSON; pliki i Socket.IO nie należą do tego przepływu. Kod serwerowy nie
+JSON oraz przesyłanie i pobieranie plików zadań; Socket.IO nie należy do tego przepływu. Kod serwerowy nie
 powinien używać przeglądarkowego `apiClient` z względnym adresem.
 
-Przesyłanie nowych załączników do zadań jest tymczasowo niedostępne:
-aplikacja nie zapisuje ich już lokalnie. Istniejące pliki nie są usuwane;
-obsługa nowych załączników wymaga integracji z backendem.
+### Baza zadań i zapis wzorów
+
+Baza korzysta z API zadań, tagów i działów. Lista pobiera wszystkie strony,
+a wyszukiwanie i filtrowanie odbywa się lokalnie. Backend określa źródło
+zadania; edycja, usuwanie i zmiana tagów w tym widoku są dostępne właścicielowi.
+Filtry bazy są zachowywane podczas nawigacji w aplikacji (do odświeżenia strony).
+W szczegółach przyciski poprzedniego i następnego zadania używają pełnej,
+posortowanej listy z aktywnymi filtrami. Liczniki poziomów, działów i typów
+uwzględniają wybory w pozostałych dwóch z tych grup, niezależnie od wyszukiwania
+i pozostałych filtrów; licznik działu obejmuje też jego poddziały.
+Formularz wymaga działu i dopuszcza
+maksymalnie 100 punktów, 10 działów, 7 tagów i 100 bloków na sekcję.
+Formularz prowadzi kolejno przez dane, treść i opcjonalne rozwiązanie;
+przejście do następnego etapu wymaga poprawnych danych bieżącego etapu.
+
+W bloku tekstu przycisk „Wstaw wzór matematyczny” otwiera edytor z symbolami matematycznymi.
+Symbole są pogrupowane w zakładkach; pierwsza zawiera najczęściej używane.
+Na małych ekranach po wybraniu pola wzoru pojawia się klawiatura ekranowa.
+Wzory można umieszczać między fragmentami tekstu i edytować przez kliknięcie.
+Teksty z poprawnymi wzorami między pojedynczymi znakami `$` są wyświetlane
+i otwierane w edytorze jako wzory.
+
+Format pola `text` bloku API jest następujący:
+
+- Tekst i wzory są zapisywane razem, np. `Oblicz $x^2 + 1$.`.
+- Dosłowny znak dolara w tekście jest zapisywany jako `\$`; odwrotne ukośniki
+  bezpośrednio przed dolarem są escapowane, aby ich nie utracić.
+- Nieprawidłowe i niezamknięte znaczniki pozostają tekstem.
+- Limit 10 000 znaków dotyczy całego pola `text` wraz ze znacznikami wzorów.
+  Backend traktuje pole jako tekst, w tym składnię LaTeX.
+
+W treści i rozwiązaniu można dodać obrazy PNG, JPEG, WebP oraz pliki PDF
+o wielkości do 10 MB. Są przesyłane dopiero podczas zapisu zadania;
+podgląd formularza i szczegóły zadania wyświetlają obrazy oraz PDF.
+Pośrednik Next.js uwierzytelnia dostęp do plików bez udostępniania tokena przeglądarce.
+Usunięcie bloku usuwa odwołanie z zadania, nie usuwa automatycznie pliku
+z backendu, ponieważ plik może być używany także gdzie indziej.
+Eksport zadania do PDF pozostaje odłożony do czasu dodania endpointu.
+Atrapy zestawów używają innych identyfikatorów niż API zadań i nie zostały
+jeszcze zintegrowane.
 
 Testy klienta i autoryzacji uruchamia `npm run test:auth`; skrypt najpierw
 wykonuje build, a następnie korzysta z izolowanej atrapy API. Atrapa jest

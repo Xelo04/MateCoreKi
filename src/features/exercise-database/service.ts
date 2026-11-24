@@ -1,396 +1,220 @@
 // ==========================================
-// SERWIS: Komunikacja z API bazy zadań
+// SERWIS: API bazy zadań i mapowanie modeli
 // ==========================================
-// * Warstwa anti-corruption: DTO (Api*) ↔ model domenowy UI.
-// * Mappery Exercise/ExerciseListItem pochodzą z types.ts (kontrakt zamrożony);
-// * mapowanie zestawów i formularzy jest zdefiniowane tutaj.
-// * Obecnie oparty o mocki w pamięci — przy integracji z FastAPI podmieniamy
-// * wywołania mocków na api-client (src/lib/api/api-client.ts).
 
+import { apiClient } from "@/lib/api/api-client";
+import { ApiError } from "@/lib/api/api-errors";
+import type { ExerciseFormBlockData, ExerciseFormData } from "./schema";
 import type {
+  ApiCategoryNode,
+  ApiCategoryRef,
   ApiExercise,
   ApiExerciseBlock,
+  ApiExerciseListItem,
+  ApiExercisePage,
+  ApiTag,
   Category,
   CategoryNode,
   Exercise,
+  ExerciseBlock,
+  ExerciseBlockPayload,
+  ExerciseCreatePayload,
   ExerciseListItem,
   Tag,
 } from "./types";
-import { mapApiExerciseToExercise, mapApiExerciseToListItem } from "./types";
-import type {
-  ExerciseFormBlockData,
-  ExerciseFormData,
-} from "./schema";
 
-// ==========================================
-// BŁĘDY DOMENOWE
-// ==========================================
+const BASE_PATH = "/api/v1/exercises";
+const PAGE_SIZE = 100;
 
-export type ExerciseServiceErrorCode = "NOT_FOUND" | "VALIDATION";
+function numericId(id: string): number {
+  const parsed = Number(id);
+  if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(parsed)) {
+    throw new Error("Nieprawidłowy identyfikator zasobu.");
+  }
+  return parsed;
+}
 
-// * Błąd serwisu z kodem — warstwa widoku/hooka decyduje o komunikacie dla użytkownika.
-// TODO: [BACKEND] Mapować statusy HTTP (404 → NOT_FOUND, 422 → VALIDATION) w api-client.
-export class ExerciseServiceError extends Error {
-  readonly code: ExerciseServiceErrorCode;
+function mapTag(tag: ApiTag): Tag {
+  return { id: String(tag.id), name: tag.name, isGlobal: tag.is_system };
+}
 
-  constructor(code: ExerciseServiceErrorCode, message: string) {
-    super(message);
-    this.name = "ExerciseServiceError";
-    this.code = code;
+function mapCategory(category: ApiCategoryRef): Category {
+  return { id: String(category.id), name: category.name };
+}
+
+function mapCategoryNode(node: ApiCategoryNode, parentId: string | null): CategoryNode {
+  const id = String(node.id);
+  return {
+    id,
+    name: node.name,
+    parentId,
+    children: node.children.map((child) => mapCategoryNode(child, id)),
+  };
+}
+
+function mapBlock(block: ApiExerciseBlock, index: number): ExerciseBlock {
+  const id = `block-${index}`;
+  switch (block.type) {
+    case "text":
+      return { id, type: "text", content: block.text, style: block.style ?? "normal" };
+    case "image":
+      return { id, type: "image", assetId: block.asset_id, caption: block.caption ?? null };
+    case "file":
+      return { id, type: "file", assetId: block.asset_id, name: block.name ?? null };
+    default:
+      throw new Error("Serwer zwrócił nieobsługiwany typ bloku zadania.");
   }
 }
 
-// ==========================================
-// STAŁE MOCKÓW
-// ==========================================
+function mapExercise(api: ApiExercise): Exercise {
+  return {
+    id: String(api.id),
+    title: api.title,
+    sourceType: api.source_type,
+    exerciseType: api.exercise_type,
+    mathLevel: api.math_level,
+    difficulty: api.difficulty,
+    points: api.points,
+    content: api.content.map(mapBlock),
+    solution: api.solution?.map(mapBlock) ?? null,
+    gradingRulesUrl: api.grading_rules_url,
+    tags: api.tags.map(mapTag),
+    categories: api.categories.map(mapCategory),
+    isOwner: api.is_owner,
+    setCount: api.set_count,
+    createdAt: new Date(api.created_at),
+    updatedAt: new Date(api.updated_at),
+  };
+}
 
-// * Symulowane opóźnienia sieci (ms)
-const MOCK_LATENCY_MS = {
-  tiny: 200,
-  short: 300,
-  medium: 400,
-  write: 500,
-  slowWrite: 600,
-} as const;
+function mapListItem(api: ApiExerciseListItem): ExerciseListItem {
+  return {
+    id: String(api.id),
+    title: api.title,
+    difficulty: api.difficulty,
+    points: api.points,
+    mathLevel: api.math_level,
+    exerciseType: api.exercise_type,
+    sourceType: api.source_type,
+    tags: api.tags.map(mapTag),
+    categories: api.categories.map(mapCategory),
+    hasSolution: api.has_solution,
+    isOwner: api.is_owner,
+    setCount: api.set_count,
+    updatedAt: new Date(api.updated_at),
+  };
+}
 
-const delay = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
-// * Unikalne ID mocków — licznik eliminuje kolizje Date.now() w tej samej milisekundzie
-let mockIdSequence = 0;
-const createMockId = (prefix: string): string =>
-  `${prefix}-${Date.now()}-${++mockIdSequence}`;
-
-// ==========================================
-// DANE MOCKOWE
-// ==========================================
-
-type ApiTag = ApiExercise["tags"][number];
-type ApiCategory = ApiExercise["categories"][number];
-
-const mockTags: Tag[] = [
-  { id: "t-1", name: "Arytmetyka", isGlobal: true },
-  { id: "t-2", name: "Algebra", isGlobal: true },
-  { id: "t-3", name: "Funkcje", isGlobal: true },
-  { id: "t-4", name: "Trudne maturalne", isGlobal: false },
-];
-
-const mockCategories: Category[] = [
-  { id: "c-sp", name: "Szkoła Podstawowa", parentId: null },
-  { id: "c-sp-aryt", name: "Arytmetyka", parentId: "c-sp" },
-  { id: "c-sp-geo", name: "Geometria", parentId: "c-sp" },
-
-  { id: "c-lo", name: "Liceum / Technikum", parentId: null },
-  { id: "c-lo-func", name: "Funkcje", parentId: "c-lo" },
-  { id: "c-lo-func-kwad", name: "Funkcja kwadratowa", parentId: "c-lo-func" },
-  { id: "c-lo-func-lin", name: "Funkcja liniowa", parentId: "c-lo-func" },
-];
-
-// * Rozwiązuje ID tagu do DTO na podstawie słownika mockTags.
-// * Dzięki temu nazwy w zadaniach są ZAWSZE spójne ze słownikiem.
-// ! Nieznane ID to błąd (NOT_FOUND), a nie cichy fallback „Nieznany”.
-const resolveApiTag = (tagId: string): ApiTag => {
-  const tag = mockTags.find((candidate) => candidate.id === tagId);
-  if (!tag) {
-    throw new ExerciseServiceError("NOT_FOUND", `Tag ${tagId} nie istnieje`);
+function mapFormBlock(block: ExerciseFormBlockData): ExerciseBlockPayload {
+  switch (block.type) {
+    case "text":
+      return { type: "text", text: block.content, style: block.style };
+    case "image":
+      return { type: "image", asset_id: block.assetId, caption: block.caption };
+    case "file":
+      return { type: "file", asset_id: block.assetId, name: block.name };
+    case "pending":
+      throw new Error("Załącznik nie został jeszcze przesłany.");
+    default:
+      throw new Error("Nieobsługiwany typ bloku zadania.");
   }
-  return { id: tag.id, name: tag.name, is_global: tag.isGlobal };
-};
+}
 
-const resolveApiCategory = (categoryId: string): ApiCategory => {
-  const category = mockCategories.find(
-    (candidate) => candidate.id === categoryId,
-  );
-  if (!category) {
-    throw new ExerciseServiceError(
-      "NOT_FOUND",
-      `Kategoria ${categoryId} nie istnieje`,
-    );
-  }
-  return { id: category.id, name: category.name, parent_id: category.parentId };
-};
-
-let mockExercises: ApiExercise[] = [
-  {
-    id: "ex-1",
-    title: "Równanie kwadratowe",
-    source_type_code: "cke",
-    exercise_type_code: "open",
-    math_level: "highschool_basic",
-    difficulty: "easy",
-    points: 2,
-    content: [
-      {
-        id: "b1",
-        type: "text",
-        content: "Rozwiąż równanie kwadratowe: x² + 5x + 6 = 0.",
-      },
-    ],
-    solution: [
-      { id: "s1", type: "text", content: "Δ = 25 - 24 = 1, x₁ = -2, x₂ = -3" },
-    ],
-    grading_rules_url: null,
-    tags: [resolveApiTag("t-2")],
-    categories: [
-      resolveApiCategory("c-lo"),
-      resolveApiCategory("c-lo-func-kwad"),
-    ],
-    created_at: "2025-06-10T10:00:00Z",
-    updated_at: "2025-06-10T10:00:00Z",
-  },
-  {
-    id: "ex-2",
-    title: "Szybkie zadanie tekstowe z trójkąta",
-    source_type_code: "tutor",
-    exercise_type_code: "closed",
-    math_level: "primary_4_8",
-    difficulty: "medium",
-    points: null,
-    content: [
-      { id: "b2", type: "text", content: "Oblicz sumę kątów..." },
-      {
-        id: "b3",
-        type: "image",
-        url: "https://example.com/trojkat.png",
-        asset_id: 12,
-      },
-    ],
-    solution: null,
-    grading_rules_url: null,
-    tags: [],
-    categories: [resolveApiCategory("c-sp-geo")],
-    created_at: "2025-06-11T14:30:00Z",
-    updated_at: "2025-06-11T14:30:00Z",
-  },
-  {
-    id: "ex-3",
-    title: "Pochodna iloczynu",
-    source_type_code: "generated",
-    exercise_type_code: "proof",
-    math_level: "highschool_extended",
-    difficulty: "hard",
-    points: 5,
-    content: [
-      {
-        id: "b4",
-        type: "text",
-        content: "Oblicz pochodną funkcji f(x) = x² · sin(x).",
-      },
-    ],
-    solution: [{ id: "s2", type: "text", content: "Wzór: (f*g)' = f'g + fg'" }],
-    grading_rules_url: null,
-    tags: [resolveApiTag("t-3"), resolveApiTag("t-4")],
-    categories: [resolveApiCategory("c-lo-func")],
-    created_at: "2025-06-12T09:15:00Z",
-    updated_at: "2025-06-12T09:15:00Z",
-  },
-];
-
-// ==========================================
-// HELPERY: Wyszukiwanie w mockach
-// ==========================================
-
-const findExerciseOrThrow = (id: string): ApiExercise => {
-  const exercise = mockExercises.find((candidate) => candidate.id === id);
-  if (!exercise) {
-    throw new ExerciseServiceError("NOT_FOUND", `Zadanie ${id} nie istnieje`);
-  }
-  return exercise;
-};
-
-// ==========================================
-// MAPOWANIE: Formularz → DTO (kierunek zapisu)
-// ==========================================
-
-// * Mapuje blok formularza (camelCase, assetId) na blok API (snake_case, asset_id).
-// * fallbackId nadaje ID nowym blokom, które nie mają jeszcze własnego.
-const mapFormBlockToApiBlock = (
-  block: ExerciseFormBlockData,
-  fallbackId: string,
-): ApiExerciseBlock => {
-  const id = block.id || fallbackId;
-  if (block.type === "text") {
-    return { id, type: "text", content: block.content };
-  }
-  return { id, type: block.type, url: block.url, asset_id: block.assetId };
-};
-
-// * Pola ApiExercise edytowalne z formularza (reszta: id, daty, grading_rules_url).
-type ApiExerciseEditableFields = Omit<
-  ApiExercise,
-  "id" | "grading_rules_url" | "created_at" | "updated_at"
->;
-
-// * Wspólne mapowanie ExerciseFormData → pola DTO dla create i update.
-// TODO: [BACKEND] Docelowo payload: ExerciseCreatePayload (tag_ids, category_ids, asset_id bez url).
-const mapFormToApiFields = (
-  form: ExerciseFormData,
-  idPrefix: string,
-): ApiExerciseEditableFields => ({
-  title: form.title,
-  source_type_code: form.sourceTypeCode,
-  exercise_type_code: form.exerciseTypeCode,
-  math_level: form.mathLevel,
-  difficulty: form.difficulty,
-  points: form.points,
-  content: form.content.map((block, index) =>
-    mapFormBlockToApiBlock(block, `${idPrefix}-b${index}`),
-  ),
-  solution:
-    form.solution.length > 0
-      ? form.solution.map((block, index) =>
-          mapFormBlockToApiBlock(block, `${idPrefix}-s${index}`),
-        )
-      : null,
-  tags: form.tagIds.map(resolveApiTag),
-  categories: form.categoryIds.map(resolveApiCategory),
-});
-
-// ==========================================
-// MAPOWANIE: DTO → model domenowy (kierunek odczytu)
-// ==========================================
-
-// ==========================================
-// MAPOWANIE: Drzewo kategorii
-// ==========================================
-
-// * Buduje drzewo z płaskiej listy. Kategorie z nieistniejącym rodzicem
-// * (osierocone) trafiają na poziom główny, żeby nie zniknęły z UI.
-const buildCategoryTree = (categories: readonly Category[]): CategoryNode[] => {
-  const nodes = new Map<string, CategoryNode>(
-    categories.map((category): [string, CategoryNode] => [
-      category.id,
-      { ...category, children: [] },
-    ]),
-  );
-  const roots: CategoryNode[] = [];
-
-  for (const category of categories) {
-    const node = nodes.get(category.id);
-    if (!node) continue;
-
-    const parent = category.parentId ? nodes.get(category.parentId) : undefined;
-    if (parent) {
-      parent.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
-
-  return roots;
-};
-
-// ==========================================
-// SERWIS: Eksportowane metody API
-// ==========================================
+function mapForm(form: ExerciseFormData): ExerciseCreatePayload {
+  return {
+    title: form.title,
+    exercise_type: form.exerciseTypeCode,
+    math_level: form.mathLevel,
+    difficulty: form.difficulty,
+    points: form.points,
+    content: form.content.map(mapFormBlock),
+    solution: form.solution.length ? form.solution.map(mapFormBlock) : null,
+    tag_ids: form.tagIds.map(numericId),
+    category_ids: form.categoryIds.map(numericId),
+  };
+}
 
 export const ExerciseService = {
-  // ----- Słowniki: tagi i kategorie -----
-
-  // * Lista wszystkich dostępnych tagów.
-  // TODO: [BACKEND] GET /api/v1/exercises/tags
-  async getTags(): Promise<Tag[]> {
-    await delay(MOCK_LATENCY_MS.tiny);
-    return mockTags.map((tag) => ({ ...tag }));
-  },
-
-  // * Tworzy tag inline z formularza zadania. Duplikat (case-insensitive) zwraca istniejący tag.
-  // * Pusta nazwa → ExerciseServiceError("VALIDATION").
-  // TODO: [BACKEND] POST /api/v1/exercises/tags
-  async createTag(name: string): Promise<Tag> {
-    await delay(MOCK_LATENCY_MS.tiny);
-
-    const trimmed = name.trim();
-    if (!trimmed) {
-      throw new ExerciseServiceError(
-        "VALIDATION",
-        "Nazwa tagu nie może być pusta",
-      );
+  async uploadAsset(file: File): Promise<{ id: number; mimeType: string; originalName: string | null }> {
+    const body = new FormData();
+    body.append("file", file);
+    const result = await apiClient.post<{ id: number; mime_type: string; original_name: string | null }>("/api/v1/assets", { body });
+    if (!Number.isSafeInteger(result.id) || result.id <= 0 ||
+        !["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(result.mime_type) ||
+        (result.original_name !== null && typeof result.original_name !== "string")) {
+      throw new Error("Nieprawidłowa odpowiedź serwera po przesłaniu pliku.");
     }
-
-    const existing = mockTags.find(
-      (tag) => tag.name.toLowerCase() === trimmed.toLowerCase(),
-    );
-    if (existing) return { ...existing };
-
-    const newTag: Tag = {
-      id: createMockId("t"),
-      name: trimmed,
-      isGlobal: false,
-    };
-    mockTags.push(newTag);
-    return { ...newTag };
+    return { id: result.id, mimeType: result.mime_type, originalName: result.original_name };
   },
 
-  // * Hierarchiczne drzewo kategorii (działów) do selectów i drzewka w formularzu.
-  // TODO: [BACKEND] GET /api/v1/exercises/categories
+  async deleteUnusedAsset(id: number): Promise<void> {
+    if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Nieprawidłowy identyfikator pliku.");
+    await apiClient.delete<void>(`/api/v1/assets/${id}`);
+  },
+
+  // * GET /api/v1/tags — tagi systemowe i własne.
+  async getTags(): Promise<Tag[]> {
+    return (await apiClient.get<ApiTag[]>("/api/v1/tags")).map(mapTag);
+  },
+
+  // * POST /api/v1/tags — konflikt nazwy jest zwracany przez backend.
+  async createTag(name: string): Promise<Tag> {
+    return mapTag(await apiClient.post<ApiTag>("/api/v1/tags", { body: { name: name.trim() } }));
+  },
+
+  // * GET /api/v1/categories — uporządkowane drzewo działów.
   async getCategoriesTree(): Promise<CategoryNode[]> {
-    await delay(MOCK_LATENCY_MS.short);
-    return buildCategoryTree(mockCategories);
+    return (await apiClient.get<ApiCategoryNode[]>("/api/v1/categories"))
+      .map((node) => mapCategoryNode(node, null));
   },
 
-  // ----- Zadania: odczyt -----
-
-  // * Lekka lista zadań (bez treści) do przeglądarki i kreatora zestawu.
-  // TODO: [BACKEND] GET /api/v1/exercises
+  // * GET /api/v1/exercises — wszystkie strony lekkiej listy.
   async getExercisesList(): Promise<ExerciseListItem[]> {
-    await delay(MOCK_LATENCY_MS.medium);
-    return mockExercises.map(mapApiExerciseToListItem);
+    const items: ExerciseListItem[] = [];
+    const seen = new Set<number>();
+    let offset = 0;
+    for (;;) {
+      const page = await apiClient.get<ApiExercisePage>(`${BASE_PATH}?limit=${PAGE_SIZE}&offset=${offset}`);
+      if (!Number.isSafeInteger(page.total) || page.total < 0 || !Array.isArray(page.items)) {
+        throw new Error("Nieprawidłowa odpowiedź listy zadań.");
+      }
+      for (const item of page.items) {
+        if (seen.has(item.id)) {
+          throw new Error("Lista zadań zmieniła się podczas pobierania. Spróbuj ponownie.");
+        }
+        seen.add(item.id);
+        items.push(mapListItem(item));
+      }
+      offset += page.items.length;
+      if (offset >= page.total) return items;
+      if (page.items.length === 0) {
+        throw new Error("Niekompletna odpowiedź listy zadań.");
+      }
+    }
   },
 
-  // * Pełne szczegóły zadania; null, gdy zadanie nie istnieje (widoki obsługują ten stan).
-  // TODO: [BACKEND] GET /api/v1/exercises/:id (404 → null)
+  // * GET /api/v1/exercises/{id} — szczegóły albo brak zasobu.
   async getExercise(id: string): Promise<Exercise | null> {
-    await delay(MOCK_LATENCY_MS.short);
-    const row = mockExercises.find((exercise) => exercise.id === id);
-    return row ? mapApiExerciseToExercise(row) : null;
+    try {
+      return mapExercise(await apiClient.get<ApiExercise>(`${BASE_PATH}/${numericId(id)}`));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
   },
 
-  // ----- Zadania: mutacje -----
-
-  // * Tworzy zadanie z danych formularza (camelCase → snake_case DTO).
-  // TODO: [BACKEND] POST /api/v1/exercises
+  // * POST /api/v1/exercises — utworzenie zadania z formularza.
   async createExercise(form: ExerciseFormData): Promise<Exercise> {
-    await delay(MOCK_LATENCY_MS.slowWrite);
-
-    const newId = createMockId("ex");
-    const now = new Date().toISOString();
-    const created: ApiExercise = {
-      id: newId,
-      ...mapFormToApiFields(form, newId),
-      grading_rules_url: null,
-      created_at: now,
-      updated_at: now,
-    };
-
-    mockExercises = [...mockExercises, created];
-    return mapApiExerciseToExercise(created);
+    return mapExercise(await apiClient.post<ApiExercise>(BASE_PATH, { body: mapForm(form) }));
   },
 
-  // * Aktualizuje zadanie; nieistniejące ID → NOT_FOUND. Zachowuje created_at i grading_rules_url.
-  // TODO: [BACKEND] PUT /api/v1/exercises/:id
+  // * PATCH /api/v1/exercises/{id} — zapis bez zmiany nieedytowanych zasad oceniania.
   async updateExercise(id: string, form: ExerciseFormData): Promise<Exercise> {
-    await delay(MOCK_LATENCY_MS.slowWrite);
-
-    const existing = findExerciseOrThrow(id);
-    const updated: ApiExercise = {
-      ...existing,
-      ...mapFormToApiFields(form, id),
-      updated_at: new Date().toISOString(),
-    };
-
-    mockExercises = mockExercises.map((exercise) =>
-      exercise.id === id ? updated : exercise,
-    );
-    return mapApiExerciseToExercise(updated);
+    return mapExercise(await apiClient.patch<ApiExercise>(`${BASE_PATH}/${numericId(id)}`, { body: mapForm(form) }));
   },
 
-  // * Usuwa zadanie; backend powinien usunąć referencje zgodnie z kontraktem kaskady.
-  // TODO: [BACKEND] DELETE /api/v1/exercises/:id
+  // * DELETE /api/v1/exercises/{id} — backend egzekwuje powiązania z zestawami.
   async deleteExercise(id: string): Promise<void> {
-    await delay(MOCK_LATENCY_MS.medium);
-
-    findExerciseOrThrow(id);
-    mockExercises = mockExercises.filter((exercise) => exercise.id !== id);
+    await apiClient.delete<void>(`${BASE_PATH}/${numericId(id)}`);
   },
 };

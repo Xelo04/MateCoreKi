@@ -202,11 +202,8 @@ export const formatExerciseCount = (count: number): string => {
 // TAGI
 // ==========================================
 
-// * Id tagu „Inne” — zawsze wyświetlany na końcu listy
-export const OTHER_TAG_ID = "t-inne";
-
 // * Filtruje tagi po fragmencie nazwy (case-insensitive, locale pl)
-// * i sortuje alfabetycznie z tagiem „Inne” na końcu. Zwraca NOWĄ tablicę.
+// * i sortuje alfabetycznie. Zwraca NOWĄ tablicę.
 export const filterAndSortTags = (tags: readonly Tag[], query = ""): Tag[] => {
   const normalizedQuery = query.trim().toLocaleLowerCase("pl");
   const filtered = normalizedQuery
@@ -215,11 +212,7 @@ export const filterAndSortTags = (tags: readonly Tag[], query = ""): Tag[] => {
       )
     : [...tags];
 
-  return filtered.sort((a, b) => {
-    if (a.id === OTHER_TAG_ID) return 1;
-    if (b.id === OTHER_TAG_ID) return -1;
-    return a.name.localeCompare(b.name, "pl");
-  });
+  return filtered.sort((a, b) => a.name.localeCompare(b.name, "pl"));
 };
 
 // ==========================================
@@ -468,6 +461,72 @@ export const filterExercises = (
       return true;
     })
     .sort(compareByUpdatedAtDesc);
+};
+
+export const getExerciseNeighbors = (
+  exercises: readonly ExerciseListItem[],
+  exerciseId: string,
+) => {
+  const index = exercises.findIndex((exercise) => exercise.id === exerciseId);
+  return {
+    index,
+    total: exercises.length,
+    previous: index > 0 ? exercises[index - 1] : null,
+    next: index >= 0 && index < exercises.length - 1 ? exercises[index + 1] : null,
+  };
+};
+
+// * Liczniki każdej grupy uwzględniają pozostałe dwie grupy, ale nie jej własny wybór.
+export const getExerciseFacetCounts = (
+  exercises: readonly ExerciseListItem[],
+  filters: ExerciseFilters,
+  tree: readonly CategoryNode[],
+) => {
+  const facets: ExerciseFilters = {
+    ...DEFAULT_EXERCISE_FILTERS,
+    level: filters.level,
+    category: filters.category,
+    type: filters.type,
+  };
+  const levelItems = filterExercises(exercises, { ...facets, level: [] }, tree);
+  const categoryItems = filterExercises(exercises, { ...facets, category: ALL_FILTER_VALUE }, tree);
+  const typeItems = filterExercises(exercises, { ...facets, type: [] }, tree);
+  const levels = new Map<ExerciseMathLevel, number>();
+  const categories = new Map<string, number>();
+  const types = new Map<ExerciseType, number>();
+  const parents = new Map<string, string | null>();
+
+  const visit = (nodes: readonly CategoryNode[], parentId: string | null) => {
+    for (const node of nodes) {
+      parents.set(node.id, parentId);
+      categories.set(node.id, 0);
+      visit(node.children, node.id);
+    }
+  };
+  visit(tree, null);
+  for (const exercise of levelItems) {
+    if (exercise.mathLevel) levels.set(exercise.mathLevel, (levels.get(exercise.mathLevel) ?? 0) + 1);
+  }
+  for (const exercise of typeItems) {
+    types.set(exercise.exerciseType, (types.get(exercise.exerciseType) ?? 0) + 1);
+  }
+  for (const exercise of categoryItems) {
+    const counted = new Set<string>();
+    for (const category of exercise.categories) {
+      let id: string | null = category.id;
+      while (id !== null && parents.has(id) && !counted.has(id)) {
+        counted.add(id);
+        id = parents.get(id) ?? null;
+      }
+    }
+    for (const id of counted) categories.set(id, (categories.get(id) ?? 0) + 1);
+  }
+  return {
+    levels, categories, types,
+    allLevels: levelItems.length,
+    allCategories: categoryItems.length,
+    allTypes: typeItems.length,
+  };
 };
 
 // ==========================================

@@ -43,10 +43,14 @@ async function request<TResponse>(
   }
   const localPath = `${pathname.endsWith("/") ? pathname.slice(0, -1) : pathname}${path.slice(pathname.length)}`;
   const headers = new Headers(options.headers);
-  let body: string | undefined;
+  let body: string | FormData | undefined;
   if (options.body !== undefined) {
-    body = JSON.stringify(options.body);
-    if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    if (options.body instanceof FormData) {
+      body = options.body;
+    } else {
+      body = JSON.stringify(options.body);
+      if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    }
   }
 
   let response: Response;
