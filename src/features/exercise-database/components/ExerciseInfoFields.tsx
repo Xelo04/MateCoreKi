@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ListStates";
+import { ContentLoader } from "@/components/layout/ContentLoader";
 import {
   Select,
   SelectContent,
@@ -25,18 +26,12 @@ import {
 import { cn } from "@/lib/utils";
 
 import type { ExerciseFormData } from "../schema";
-import { useCategoriesTree, useTags } from "../hook";
-import {
-  EXERCISE_DIFFICULTY_LABELS,
-  EXERCISE_MATH_LEVEL_LABELS,
-  EXERCISE_TYPE_LABELS,
-  type ExerciseDifficulty,
-} from "../types";
+import { useCategoriesTree, useExerciseMeta, useTags } from "../hook";
+import type { ExerciseDifficulty } from "../types";
 import {
   DIFFICULTY_STYLES,
   filterAndSortTags,
-  getLabelEntries,
-  isLabelKey,
+  toggleCategory,
 } from "../utils";
 import { CollapsibleCategoryNode } from "./CollapsibleCategoryNode";
 
@@ -59,6 +54,7 @@ const TAG_SEARCH_DEBOUNCE_MS = 250;
 
 function DifficultyField() {
   const { control } = useFormContext<ExerciseFormData>();
+  const { meta } = useExerciseMeta();
 
   return (
     <div className="space-y-1.5">
@@ -72,8 +68,8 @@ function DifficultyField() {
             aria-labelledby="ex-difficulty-label"
             className="grid grid-cols-3 gap-2"
           >
-            {getLabelEntries(EXERCISE_DIFFICULTY_LABELS).map(
-              ([code, label]) => {
+            {meta?.difficulties.map(
+              ({ code, name: label }) => {
                 const isActive = field.value === code;
 
                 return (
@@ -113,24 +109,32 @@ function DifficultyField() {
 // POLE: Działy nauki (drzewko z checkboxami)
 // ==========================================
 
-function CategoriesField({
-  onToggle,
-}: {
-  readonly onToggle: (categoryId: string, checked: boolean) => void;
-}) {
+function CategoriesField() {
   const {
     control,
+    getValues,
+    setValue,
     formState: { errors },
   } = useFormContext<ExerciseFormData>();
   const { tree, isLoading, error, refetch } = useCategoriesTree();
   const selectedIds = useWatch({ control, name: "categoryIds" });
 
+  const onToggle = (categoryId: string, checked: boolean) => {
+    const next = toggleCategory(tree, getValues("categoryIds"), categoryId, checked);
+    setValue("categoryIds", next, { shouldDirty: true, shouldValidate: true });
+  };
+
   return (
     <div className="space-y-2">
-      <Label>
+      <Label id="ex-categories-label">
         Działy nauki <span className="text-destructive">*</span>
       </Label>
-      <div className="max-h-72 overflow-y-auto rounded-xl border border-border/50 bg-card p-3">
+      <div
+        role="group"
+        aria-labelledby="ex-categories-label"
+        aria-describedby={errors.categoryIds ? "ex-categories-error" : undefined}
+        className="max-h-72 overflow-y-auto rounded-xl border border-border/50 bg-card p-3"
+      >
         {error ? (
           <ErrorState message={error} onRetry={refetch} />
         ) : isLoading ? (
@@ -151,7 +155,7 @@ function CategoriesField({
         )}
       </div>
       {errors.categoryIds && (
-        <p className="text-xs font-semibold text-destructive">
+        <p id="ex-categories-error" role="alert" className="text-xs font-semibold text-destructive">
           {errors.categoryIds.message}
         </p>
       )}
@@ -210,7 +214,7 @@ function TagsField({
     <div className="space-y-2">
       {/* * Nagłówek sekcji + wyszukiwarka tagów */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Label htmlFor="tag-search">Tagi dodatkowe</Label>
+        <Label id="ex-tags-label" htmlFor="tag-search">Tagi dodatkowe</Label>
         <div className="relative w-full sm:max-w-xs">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -239,7 +243,12 @@ function TagsField({
 
       <div className="rounded-xl border border-border/50 bg-card p-3">
         {/* * Lista tagów jako przełączniki (aria-pressed) */}
-        <div className="flex flex-wrap gap-2">
+        <div
+          role="group"
+          aria-labelledby="ex-tags-label"
+          aria-describedby={errors.tagIds ? "ex-tags-error" : undefined}
+          className="flex flex-wrap gap-2"
+        >
           {isLoading ? (
             <div role="status" className="w-full space-y-3 py-1">
               <span className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -292,7 +301,7 @@ function TagsField({
             </p>
           )}
         </div>
-        {errors.tagIds && <p role="alert" className="mt-2 text-sm text-destructive">{errors.tagIds.message}</p>}
+        {errors.tagIds && <p id="ex-tags-error" role="alert" className="mt-2 text-sm text-destructive">{errors.tagIds.message}</p>}
 
         {/* * Tworzenie nowego tagu inline (Enter lub przycisk) */}
         <div className="mt-3 flex gap-2 border-t border-border/30 pt-3">
@@ -336,6 +345,7 @@ function TagsField({
 // ==========================================
 
 export function ExerciseInfoFields() {
+  const { meta, error: metaError, retry } = useExerciseMeta();
   const {
     register,
     control,
@@ -344,33 +354,22 @@ export function ExerciseInfoFields() {
     formState: { errors },
   } = useFormContext<ExerciseFormData>();
 
-  // * Jedna implementacja zaznaczania ID dla tagów i działów.
-  // * Czyta aktualną wartość przez getValues, więc nie ma przeterminowanych domknięć.
-  const toggleFieldId = useCallback(
-    (field: "tagIds" | "categoryIds", id: string, shouldSelect: boolean) => {
-      const current = getValues(field);
+  const toggleTag = useCallback(
+    (id: string, shouldSelect: boolean) => {
+      const current = getValues("tagIds");
       const next = shouldSelect
         ? current.includes(id)
           ? current
           : [...current, id]
         : current.filter((existingId) => existingId !== id);
 
-      setValue(field, next, { shouldDirty: true, shouldValidate: true });
+      setValue("tagIds", next, { shouldDirty: true, shouldValidate: true });
     },
     [getValues, setValue],
   );
 
-  const toggleCategory = useCallback(
-    (categoryId: string, checked: boolean) =>
-      toggleFieldId("categoryIds", categoryId, checked),
-    [toggleFieldId],
-  );
-
-  const toggleTag = useCallback(
-    (tagId: string, checked: boolean) =>
-      toggleFieldId("tagIds", tagId, checked),
-    [toggleFieldId],
-  );
+  if (metaError) return <ErrorState message={metaError} onRetry={retry} />;
+  if (!meta) return <ContentLoader minHeight="h-12" />;
 
   return (
     <div className="space-y-5">
@@ -383,10 +382,12 @@ export function ExerciseInfoFields() {
           id="ex-title"
           placeholder="np. Równanie kwadratowe z parametrem"
           className="h-11 rounded-xl"
+          aria-invalid={Boolean(errors.title)}
+          aria-describedby={errors.title ? "ex-title-error" : undefined}
           {...register("title")}
         />
         {errors.title && (
-          <p className="text-xs text-destructive">{errors.title.message}</p>
+          <p id="ex-title-error" role="alert" className="text-xs text-destructive">{errors.title.message}</p>
         )}
       </div>
 
@@ -394,7 +395,7 @@ export function ExerciseInfoFields() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-x-6 lg:gap-y-5">
           {/* * Typ zadania (wymagany) */}
           <div className="space-y-1.5">
-            <Label>
+            <Label htmlFor="ex-type">
               Typ zadania <span className="text-destructive">*</span>
             </Label>
             <Controller
@@ -404,20 +405,22 @@ export function ExerciseInfoFields() {
                 <Select
                   value={field.value ?? ""}
                   onValueChange={(next) => {
-                    if (isLabelKey(EXERCISE_TYPE_LABELS, next)) {
-                      field.onChange(next);
-                    }
+                    const option = meta.exercise_types.find((item) => item.code === next);
+                    if (option) field.onChange(option.code);
                   }}
                 >
                   <SelectTrigger
+                    id="ex-type"
                     className="h-11 rounded-xl bg-card"
                     aria-label="Typ zadania"
+                    aria-invalid={Boolean(errors.exerciseTypeCode)}
+                    aria-describedby={errors.exerciseTypeCode ? "ex-type-error" : undefined}
                   >
                     <SelectValue placeholder="Wybierz typ" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getLabelEntries(EXERCISE_TYPE_LABELS).map(
-                      ([code, label]) => (
+                    {meta.exercise_types.map(
+                      ({ code, name: label }) => (
                         <SelectItem key={code} value={code}>
                           {label}
                         </SelectItem>
@@ -428,7 +431,7 @@ export function ExerciseInfoFields() {
               )}
             />
             {errors.exerciseTypeCode && (
-              <p className="text-xs text-destructive">
+              <p id="ex-type-error" role="alert" className="text-xs text-destructive">
                 {errors.exerciseTypeCode.message}
               </p>
             )}
@@ -443,13 +446,13 @@ export function ExerciseInfoFields() {
               render={({ field }) => (
                 <Select
                   value={field.value ?? "none"}
-                  onValueChange={(next) =>
-                    field.onChange(
-                      isLabelKey(EXERCISE_MATH_LEVEL_LABELS, next)
-                        ? next
-                        : null,
-                    )
-                  }
+                  onValueChange={(next) => {
+                    if (next === "none") field.onChange(null);
+                    else {
+                      const option = meta.math_levels.find((item) => item.code === next);
+                      if (option) field.onChange(option.code);
+                    }
+                  }}
                 >
                   <SelectTrigger
                     className="h-11 rounded-xl bg-card"
@@ -459,8 +462,8 @@ export function ExerciseInfoFields() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nieokreślony</SelectItem>
-                    {getLabelEntries(EXERCISE_MATH_LEVEL_LABELS).map(
-                      ([code, label]) => (
+                    {meta.math_levels.map(
+                      ({ code, name: label }) => (
                         <SelectItem key={code} value={code}>
                           {label}
                         </SelectItem>
@@ -484,6 +487,8 @@ export function ExerciseInfoFields() {
               max={100}
               placeholder="0"
               className="rounded-xl pr-16 text-base font-semibold"
+              aria-invalid={Boolean(errors.points)}
+              aria-describedby={errors.points ? "ex-points-error" : undefined}
               {...register("points", {
                 setValueAs: (value: unknown) =>
                   value === "" || value == null ? null : Number(value),
@@ -497,12 +502,12 @@ export function ExerciseInfoFields() {
             </span>
           </div>
           {errors.points && (
-            <p className="text-xs text-destructive">{errors.points.message}</p>
+            <p id="ex-points-error" role="alert" className="text-xs text-destructive">{errors.points.message}</p>
           )}
         </div>
       </div>
 
-      <CategoriesField onToggle={toggleCategory} />
+      <CategoriesField />
       <TagsField onToggle={toggleTag} />
     </div>
   );

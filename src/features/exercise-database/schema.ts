@@ -2,69 +2,61 @@
 // SCHEMA: Walidacja formularzy modułu zadań
 // ==========================================
 // * Schematy Zod formularzy bazy pojedynczych zadań.
-// * Mapowanie DTO ↔ model domenowy NIE należy tutaj — żyje w types.ts (mappery)
-// * oraz service.ts (mapowanie formularza na payload API).
+// * Mapowanie DTO i formularza na payload API żyje w service.ts.
 
 import { z } from "zod";
 import {
-  EXERCISE_DIFFICULTY_LABELS,
-  EXERCISE_MATH_LEVEL_LABELS,
-  EXERCISE_TYPE_LABELS,
-  type ExerciseDifficulty,
-  type ExerciseMathLevel,
-  type ExerciseType,
+  EXERCISE_DIFFICULTIES,
+  EXERCISE_MATH_LEVELS,
+  EXERCISE_SOURCE_TYPES,
+  EXERCISE_TYPES,
 } from "./types";
+
+// * Metadane API są walidowane przed udostępnieniem ich komponentom.
+const metaOption = <T extends z.ZodType<string>>(code: T) =>
+  z.object({ code, name: z.string().min(1) });
+export const metaSchema = z.object({
+  exercise_types: z.array(metaOption(z.enum(EXERCISE_TYPES))),
+  source_types: z.array(metaOption(z.enum(EXERCISE_SOURCE_TYPES))),
+  math_levels: z.array(metaOption(z.enum(EXERCISE_MATH_LEVELS))),
+  difficulties: z.array(metaOption(z.enum(EXERCISE_DIFFICULTIES))),
+});
+export type ExerciseMeta = z.infer<typeof metaSchema>;
 
 // ==========================================
 // STAŁE: Limity plików
 // ==========================================
 
-// * Limit odpowiada domyślnemu limitowi przesyłania plików backendu.
+// * Limit frontendu jest niezależny od konfigurowalnego limitu backendu.
 export const EXERCISE_FILE_LIMITS = {
   maxFileSizeBytes: 10 * 1024 * 1024,
 } as const;
 
 // ==========================================
-// HELPERY WEWNĘTRZNE
-// ==========================================
-
-// * Waliduje, że wartość jest kluczem słownika etykiet (np. EXERCISE_TYPE_LABELS).
-// * Zastępuje poprzednie z.custom<T>() sprawdzające tylko „niepusty string”.
-function labelKeySchema<T extends string>(
-  labels: Readonly<Record<T, string>>,
-  message: string,
-) {
-  return z.custom<T>(
-    (value) => typeof value === "string" && Object.hasOwn(labels, value),
-    { message },
-  );
-}
-
-// ==========================================
 // SCHEMA: Bloki treści (ExerciseBlockBuilder)
 // ==========================================
 
-export const exerciseBlockFormSchema = z.discriminatedUnion("type", [
+const exerciseBlockFormSchema = z.discriminatedUnion("type", [
   z.object({
     id: z.string().optional(),
     type: z.literal("text"),
     content: z
       .string()
       .refine((value) => value.trim().length > 0, "Treść tekstu nie może być pusta")
-      .max(10_000, "Maksymalnie 10 000 znaków"),
-    style: z.enum(["normal", "intro", "instruction"]),
+      .refine((value) => Array.from(value).length <= 10_000, "Maksymalnie 10 000 znaków")
+      .refine((value) => !/\\(href|url|includegraphics|html[A-Za-z]*)(?![A-Za-z])/.test(value), "Niedozwolone polecenie LaTeX"),
   }),
   z.object({
     id: z.string().optional(),
     type: z.literal("image"),
     assetId: z.number().int().positive(),
-    caption: z.string().max(300).nullable(),
+    caption: z.string().refine((value) => Array.from(value).length <= 300, "Maksymalnie 300 znaków").nullable(),
   }),
   z.object({
     id: z.string().optional(),
     type: z.literal("file"),
     assetId: z.number().int().positive(),
-    name: z.string().max(255).nullable(),
+    name: z.string().refine((value) => Array.from(value).length <= 255, "Maksymalnie 255 znaków").nullable(),
   }),
   z.object({
     id: z.string().optional(),
@@ -87,19 +79,10 @@ export const exerciseFormSchema = z.object({
     .string()
     .trim()
     .min(1, "Tytuł jest wymagany")
-    .max(200, "Maksymalnie 200 znaków"),
-  exerciseTypeCode: labelKeySchema<ExerciseType>(
-    EXERCISE_TYPE_LABELS,
-    "Wybierz typ zadania",
-  ),
-  mathLevel: labelKeySchema<ExerciseMathLevel>(
-    EXERCISE_MATH_LEVEL_LABELS,
-    "Nieprawidłowy poziom",
-  ).nullable(),
-  difficulty: labelKeySchema<ExerciseDifficulty>(
-    EXERCISE_DIFFICULTY_LABELS,
-    "Nieprawidłowa trudność",
-  ).nullable(),
+    .refine((value) => Array.from(value).length <= 200, "Maksymalnie 200 znaków"),
+  exerciseTypeCode: z.enum(EXERCISE_TYPES, { message: "Wybierz typ zadania" }),
+  mathLevel: z.enum(EXERCISE_MATH_LEVELS, { message: "Nieprawidłowy poziom" }).nullable(),
+  difficulty: z.enum(EXERCISE_DIFFICULTIES, { message: "Nieprawidłowa trudność" }).nullable(),
   // * null = zadanie bez punktacji. NaN (z setValueAs w formularzu) jest odrzucane przez z.number().
   points: z
     .number({ message: "Punkty muszą być liczbą" })
@@ -112,8 +95,8 @@ export const exerciseFormSchema = z.object({
   content: exerciseBlockListSchema.min(
     1,
     "Dodaj przynajmniej jeden blok treści zadania",
-  ),
-  solution: exerciseBlockListSchema.default([]),
+  ).refine((blocks) => blocks.reduce((sum, block) => sum + (block.type === "text" ? Array.from(block.content).length : 0), 0) <= 50_000, "Łącznie maksymalnie 50 000 znaków"),
+  solution: exerciseBlockListSchema.refine((blocks) => blocks.reduce((sum, block) => sum + (block.type === "text" ? Array.from(block.content).length : 0), 0) <= 50_000, "Łącznie maksymalnie 50 000 znaków").default([]),
 });
 
 export type ExerciseFormData = z.infer<typeof exerciseFormSchema>;

@@ -3,7 +3,7 @@
 // ==========================================
 // * Czyste funkcje i współdzielone stałe domenowe modułu exercise:
 // * style trudności, ikony poziomu/źródła, wyszukiwarka z morfologią polską,
-// * filtrowanie listy zadań, operacje na drzewie kategorii i wizualizacje zestawów.
+// * filtrowanie listy zadań, wybór kategorii i kodowanie wzorów.
 
 import {
   Pencil,
@@ -16,16 +16,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
-  EXERCISE_MATH_LEVEL_LABELS,
-  EXERCISE_SOURCE_TYPE_LABELS,
-  EXERCISE_TYPE_LABELS,
-  EXERCISE_DIFFICULTY_LABELS,
   type CategoryNode,
   type Exercise,
   type ExerciseDifficulty,
   type ExerciseListItem,
   type ExerciseMathLevel,
   type ExerciseSourceType,
+  EXERCISE_SOURCE_TYPE_LABELS,
   type ExerciseType,
   type Tag,
 } from "./types";
@@ -46,7 +43,7 @@ export const compareByUpdatedAtDesc = <T extends { readonly updatedAt: Date }>(
 // TRUDNOŚĆ: Kolory i etykiety
 // ==========================================
 
-export interface DifficultyStyle {
+interface DifficultyStyle {
   readonly bg: string;
   readonly text: string;
   readonly dot: string;
@@ -90,13 +87,6 @@ const NO_DIFFICULTY_STYLE: DifficultyStyle = {
   stripe: "border-l-4 border-l-muted-foreground/30",
 };
 
-export const getDifficultyLabel = (
-  difficulty: ExerciseDifficulty | null,
-): string => {
-  if (!difficulty) return "Bez poziomu";
-  return EXERCISE_DIFFICULTY_LABELS[difficulty];
-};
-
 export const getDifficultyStyle = (
   difficulty: ExerciseDifficulty | null,
 ): DifficultyStyle => {
@@ -116,11 +106,6 @@ export const MATH_LEVEL_ICONS: Record<ExerciseMathLevel, LucideIcon> = {
   highschool_extended: GraduationCap,
 };
 
-export const getMathLevelLabel = (level: ExerciseMathLevel | null): string => {
-  if (!level) return "";
-  return EXERCISE_MATH_LEVEL_LABELS[level];
-};
-
 export const getMathLevelStyle = (level: ExerciseMathLevel | null): string => {
   if (level === "primary_1_3")
     return "bg-emerald-500/10 text-emerald-700 border-emerald-500/20";
@@ -136,9 +121,6 @@ export const getMathLevelStyle = (level: ExerciseMathLevel | null): string => {
 // ==========================================
 // TYP ZADANIA
 // ==========================================
-
-export const getExerciseTypeLabel = (type: ExerciseType): string =>
-  EXERCISE_TYPE_LABELS[type];
 
 // * Typ zadania ma jeden wspólny styl pigułki (indigo)
 export const getExerciseTypeStyle = (): string =>
@@ -173,6 +155,14 @@ export const getSourceTypeStyle = (source: ExerciseSourceType): string => {
     return "bg-purple-500/10 text-purple-600 border-purple-500/20";
   return "";
 };
+
+// * Etykiety pochodzą z metadanych API; nieznany kod pozostaje widoczny.
+export function metaLabel<T extends string>(
+  options: readonly { code: T; name: string }[],
+  code: T,
+): string {
+  return options.find((option) => option.code === code)?.name ?? `Nieznana wartość: ${code}`;
+}
 
 // ==========================================
 // JĘZYK POLSKI: Odmiana słów
@@ -215,29 +205,9 @@ export const filterAndSortTags = (tags: readonly Tag[], query = ""): Tag[] => {
   return filtered.sort((a, b) => a.name.localeCompare(b.name, "pl"));
 };
 
-// ==========================================
-// ZESTAWY: Obliczenia
-// ==========================================
-
-// * Zbiera do `limit` unikalnych tagów z kolejnych zadań zestawu (kolejność zachowana)
-export const getPreviewTags = (
-  allTags: readonly (readonly Tag[])[],
-  limit = 3,
-): Tag[] => {
-  const seen = new Set<string>();
-  const result: Tag[] = [];
-
-  for (const tags of allTags) {
-    for (const tag of tags) {
-      if (seen.has(tag.id)) continue;
-      seen.add(tag.id);
-      result.push(tag);
-      if (result.length >= limit) return result;
-    }
-  }
-
-  return result;
-};
+export const isPdfFile = (file: File): boolean =>
+  file.type === "application/pdf" ||
+  (!["image/png", "image/jpeg", "image/webp"].includes(file.type) && /\.pdf$/i.test(file.name));
 
 // ==========================================
 // SMART SEARCH: Wyszukiwanie z morfologią polską
@@ -322,8 +292,39 @@ export interface CategoryTreeLike {
   readonly children?: readonly CategoryTreeLike[];
 }
 
+// * Rodzic jest zaznaczony wizualnie także wtedy, gdy wybrano tylko jego potomka.
+export function isCategorySelected(node: CategoryTreeLike, selectedIds: readonly string[]): boolean {
+  return selectedIds.includes(node.id) || (node.children ?? []).some((child) => isCategorySelected(child, selectedIds));
+}
+
+// * Wybór potomka zastępuje ID przodków; odznaczenie usuwa ID poddrzewa.
+export function toggleCategory(
+  tree: readonly CategoryTreeLike[],
+  selectedIds: readonly string[],
+  categoryId: string,
+  checked: boolean,
+): string[] {
+  const subtree = (node: CategoryTreeLike): string[] =>
+    [node.id, ...(node.children ?? []).flatMap(subtree)];
+  const find = (nodes: readonly CategoryTreeLike[], path: string[] = []): { node: CategoryTreeLike; path: string[] } | null => {
+    for (const node of nodes) {
+      const next = [...path, node.id];
+      if (node.id === categoryId) return { node, path: next };
+      const found = find(node.children ?? [], next);
+      if (found) return found;
+    }
+    return null;
+  };
+  const found = find(tree);
+  if (!found) throw new Error("Nieznany dział.");
+  // * Przy wyborze usuwamy ID ze ścieżki; przy odznaczeniu tylko ID w poddrzewie.
+  const removed = new Set(checked ? found.path : subtree(found.node));
+  const next = selectedIds.filter((id) => !removed.has(id));
+  return checked ? [...next, categoryId] : next;
+}
+
 // * Rekurencyjnie wyszukuje węzeł po ID (DFS). Zwraca null, gdy nie istnieje.
-export const findCategoryNode = (
+const findCategoryNode = (
   nodes: readonly CategoryTreeLike[],
   id: string,
 ): CategoryTreeLike | null => {
@@ -337,7 +338,7 @@ export const findCategoryNode = (
 
 // * ID wybranej kategorii ORAZ wszystkich jej potomków.
 // * Dla ALL_FILTER_VALUE zwraca pusty zbiór (filtr wyłączony).
-export const getValidCategoryIds = (
+const getValidCategoryIds = (
   tree: readonly CategoryTreeLike[],
   selectedId: string,
 ): Set<string> => {
@@ -419,7 +420,7 @@ export const filterExercises = (
         !smartSearch(filters.query, [
           exercise.title,
           ...exercise.tags.map((tag) => tag.name),
-          ...exercise.categories.map((category) => category.name),
+          ...exercise.categories.map((category) => category.path.join(" ")),
         ])
       ) {
         return false;
@@ -530,130 +531,103 @@ export const getExerciseFacetCounts = (
 };
 
 // ==========================================
-// WIZUALIZACJE ZESTAWÓW I FOLDERÓW
+// WZORY: Tekst i LaTeX w jednym bloku API
 // ==========================================
 
-interface SetPalette {
-  readonly glow: string;
-  readonly hoverBorder: string;
-  readonly stripe: string;
-  readonly accentHex: string;
-  readonly accentText: string;
-  readonly hoverBg: string;
+export type MathContentPart =
+  | { type: "text"; text: string }
+  | { type: "math"; latex: string; display?: boolean };
+
+// * Pojedynczy $ zamyka wzór inline, podwójny $$ blokowy; escapowany $ go nie zamyka.
+// * Wzór inline nie może przekraczać końca wiersza, a pusty lub niedomknięty pozostaje tekstem.
+function findMathEnd(value: string, start: number): number | null {
+  const display = value[start + 1] === "$";
+  const width = display ? 2 : 1;
+  for (let end = start + width; end < value.length; end++) {
+    if (!display && (value[end] === "\n" || value[end] === "\r")) return null;
+    if (value[end] !== "$") continue;
+    if (display && value[end + 1] !== "$") continue;
+    let slashes = 0;
+    for (let i = end - 1; i > start && value[i] === "\\"; i--) slashes++;
+    if (slashes % 2 !== 0) continue;
+    const latex = value.slice(start + width, end);
+    if (!latex) return null;
+    return end;
+  }
+  return null;
 }
 
-export type SetVisuals = SetPalette;
+// * Rozdziela tekst API na tekst i wzory, zachowując rodzaj znacznika oraz kolejność.
+export function decodeMathContent(value: string): MathContentPart[] {
+  const parts: MathContentPart[] = [];
+  let text = "";
+  let index = 0;
 
-const COLOR_PALETTES: readonly SetPalette[] = [
-  {
-    glow: "bg-blue-500/15",
-    hoverBorder: "hover:border-blue-500/50",
-    stripe: "border-l-4 border-l-blue-500",
-    accentHex: "#3b82f6",
-    accentText: "text-blue-600",
-    hoverBg: "hover:bg-blue-500/10",
-  },
-  {
-    glow: "bg-emerald-500/15",
-    hoverBorder: "hover:border-emerald-500/50",
-    stripe: "border-l-4 border-l-emerald-500",
-    accentHex: "#10b981",
-    accentText: "text-emerald-600",
-    hoverBg: "hover:bg-emerald-500/10",
-  },
-  {
-    glow: "bg-violet-500/15",
-    hoverBorder: "hover:border-violet-500/50",
-    stripe: "border-l-4 border-l-violet-500",
-    accentHex: "#8b5cf6",
-    accentText: "text-violet-600",
-    hoverBg: "hover:bg-violet-500/10",
-  },
-  {
-    glow: "bg-rose-500/15",
-    hoverBorder: "hover:border-rose-500/50",
-    stripe: "border-l-4 border-l-rose-500",
-    accentHex: "#f43f5e",
-    accentText: "text-rose-600",
-    hoverBg: "hover:bg-rose-500/10",
-  },
-  {
-    glow: "bg-amber-500/15",
-    hoverBorder: "hover:border-amber-500/50",
-    stripe: "border-l-4 border-l-amber-500",
-    accentHex: "#f59e0b",
-    accentText: "text-amber-600",
-    hoverBg: "hover:bg-amber-500/10",
-  },
-  {
-    glow: "bg-cyan-500/15",
-    hoverBorder: "hover:border-cyan-500/50",
-    stripe: "border-l-4 border-l-cyan-500",
-    accentHex: "#06b6d4",
-    accentText: "text-cyan-600",
-    hoverBg: "hover:bg-cyan-500/10",
-  },
-  {
-    glow: "bg-fuchsia-500/15",
-    hoverBorder: "hover:border-fuchsia-500/50",
-    stripe: "border-l-4 border-l-fuchsia-500",
-    accentHex: "#d946ef",
-    accentText: "text-fuchsia-600",
-    hoverBg: "hover:bg-fuchsia-500/10",
-  },
-  {
-    glow: "bg-indigo-500/15",
-    hoverBorder: "hover:border-indigo-500/50",
-    stripe: "border-l-4 border-l-indigo-500",
-    accentHex: "#6366f1",
-    accentText: "text-indigo-600",
-    hoverBg: "hover:bg-indigo-500/10",
-  },
-  {
-    glow: "bg-teal-500/15",
-    hoverBorder: "hover:border-teal-500/50",
-    stripe: "border-l-4 border-l-teal-500",
-    accentHex: "#14b8a6",
-    accentText: "text-teal-600",
-    hoverBg: "hover:bg-teal-500/10",
-  },
-  {
-    glow: "bg-pink-500/15",
-    hoverBorder: "hover:border-pink-500/50",
-    stripe: "border-l-4 border-l-pink-500",
-    accentHex: "#ec4899",
-    accentText: "text-pink-600",
-    hoverBg: "hover:bg-pink-500/10",
-  },
-];
+  while (index < value.length) {
+    let slashes = 0;
+    while (value[index + slashes] === "\\") slashes++;
+    if (slashes && value[index + slashes] !== "$") {
+      text += "\\".repeat(slashes);
+      index += slashes;
+      continue;
+    }
 
-// * Stabilny kolor zestawu lub folderu wyliczany z hasha jego ID.
-// * (ten sam zestaw zawsze dostaje ten sam wygląd).
-export const getSetVisuals = (setId: string): SetVisuals => {
-  const hash = setId
-    .split("")
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return COLOR_PALETTES[hash % COLOR_PALETTES.length];
-};
+    const dollar = index + slashes;
+    if (value[dollar] !== "$") {
+      text += value[index];
+      index++;
+      continue;
+    }
+    // * Nieparzysta liczba ukośników oznacza dosłowny dolar, nie początek wzoru.
+    if (slashes % 2 === 1) {
+      text += "\\".repeat((slashes - 1) / 2) + "$";
+      index = dollar + 1;
+      continue;
+    }
 
-// ==========================================
-// SŁOWNIKI ETYKIET: Typowane helpery
-// ==========================================
+    const end = findMathEnd(value, dollar);
+    if (end !== null) {
+      text += "\\".repeat(slashes / 2);
+      if (text) parts.push({ type: "text", text });
+      const display = value[dollar + 1] === "$";
+      const width = display ? 2 : 1;
+      parts.push({ type: "math", latex: value.slice(dollar + width, end), display });
+      text = "";
+      index = end + width;
+    } else {
+      text += "\\".repeat(slashes) + "$";
+      index = dollar + 1;
+      if (value[index] === "$") {
+        text += "$";
+        index++;
+      }
+    }
+  }
+  if (text || parts.length === 0) parts.push({ type: "text", text });
+  return parts;
+}
 
-// * Typowane wpisy słownika etykiet (Object.entries gubi typ klucza).
-// * Przykład: getLabelEntries(EXERCISE_TYPE_LABELS) → [ExerciseType, string][]
-// ! Jedyne miejsce z rzutowaniem kluczy — klucze Record<T, string> z definicji należą do T.
-export const getLabelEntries = <T extends string>(
-  labels: Readonly<Record<T, string>>,
-): [T, string][] =>
-  (Object.keys(labels) as T[]).map((key): [T, string] => [key, labels[key]]);
-
-// * Type guard: czy `value` jest kluczem słownika etykiet.
-// * Zastępuje rzutowania wartości z <Select> (zawsze string) na typy domenowe.
-export const isLabelKey = <T extends string>(
-  labels: Readonly<Record<T, string>>,
-  value: string,
-): value is T => Object.hasOwn(labels, value);
+// * Serializacja odwraca podział, escapując dosłowne dolary i ukośniki przed wzorem.
+export function encodeMathContent(parts: readonly MathContentPart[]): string {
+  let result = "";
+  let text = "";
+  const appendText = (beforeMath: boolean) => {
+    let escaped = text.replace(/(\\*)\$/g, (_, slashes: string) => "\\".repeat(slashes.length * 2 + 1) + "$");
+    if (beforeMath) escaped = escaped.replace(/\\+$/, (slashes) => slashes + slashes);
+    result += escaped;
+    text = "";
+  };
+  for (const part of parts) {
+    if (part.type === "text") text += part.text;
+    else {
+      appendText(true);
+      const delimiter = part.display ? "$$" : "$";
+      result += `${delimiter}${part.latex}${delimiter}`;
+    }
+  }
+  appendText(false);
+  return result;
+}
 
 // ==========================================
 // DATY I PODSUMOWANIA ZADAŃ
@@ -668,13 +642,3 @@ export const formatDateTime = (date: Date): string =>
 export const hasExerciseSolution = (
   exercise: Pick<Exercise, "solution">,
 ): boolean => (exercise.solution?.length ?? 0) > 0;
-
-// * Suma punktów zadań, które je mają; null, gdy żadne zadanie nie ma punktacji
-// * (wtedy UI nie pokazuje sumy zamiast mylącego „0 pkt”).
-export const sumExercisePoints = (
-  exercises: readonly Pick<Exercise, "points">[],
-): number | null => {
-  const scored = exercises.filter((exercise) => exercise.points !== null);
-  if (scored.length === 0) return null;
-  return scored.reduce((sum, exercise) => sum + (exercise.points ?? 0), 0);
-};

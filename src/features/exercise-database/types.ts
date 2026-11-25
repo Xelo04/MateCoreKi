@@ -8,56 +8,20 @@
 // ==========================================
 
 // * Stopień trudności zadania (3 poziomy)
-export type ExerciseDifficulty = "easy" | "medium" | "hard";
+export const EXERCISE_DIFFICULTIES = ["easy", "medium", "hard"] as const;
+export type ExerciseDifficulty = (typeof EXERCISE_DIFFICULTIES)[number];
 
 // * Poziom edukacji matematycznej
-export type ExerciseMathLevel =
-  | "primary_1_3"
-  | "primary_4_8"
-  | "highschool_basic"
-  | "highschool_extended";
+export const EXERCISE_MATH_LEVELS = ["primary_1_3", "primary_4_8", "highschool_basic", "highschool_extended"] as const;
+export type ExerciseMathLevel = (typeof EXERCISE_MATH_LEVELS)[number];
 
 // * Typ zadania - wymagany
-export type ExerciseType =
-  | "open"
-  | "closed"
-  | "true_false"
-  | "multiple"
-  | "fill"
-  | "matching"
-  | "proof"
-  | "other";
+export const EXERCISE_TYPES = ["open", "closed", "true_false", "multiple", "fill", "matching", "proof", "other"] as const;
+export type ExerciseType = (typeof EXERCISE_TYPES)[number];
 
 // * Typ źródła zadania
-export type ExerciseSourceType = "cke" | "tutor" | "generated";
-
-// ==========================================
-// SŁOWNIKI I MAPY LABELI (POLSKIE TŁUMACZENIA)
-// ==========================================
-
-export const EXERCISE_DIFFICULTY_LABELS: Record<ExerciseDifficulty, string> = {
-  easy: "Łatwe",
-  medium: "Średnie",
-  hard: "Trudne",
-};
-
-export const EXERCISE_MATH_LEVEL_LABELS: Record<ExerciseMathLevel, string> = {
-  primary_1_3: "Szkoła Podstawowa (1-3)",
-  primary_4_8: "Szkoła Podstawowa (4-8)",
-  highschool_basic: "Maturalne (Podstawa)",
-  highschool_extended: "Maturalne (Rozszerzenie)",
-};
-
-export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
-  open: "Otwarte",
-  closed: "Zamknięte",
-  true_false: "Prawda / Fałsz",
-  multiple: "Wielokrotny wybór",
-  fill: "Luka do wypełnienia",
-  matching: "Dopasowywanie",
-  proof: "Na dowodzenie",
-  other: "Inne",
-};
+export const EXERCISE_SOURCE_TYPES = ["cke", "tutor", "generated"] as const;
+export type ExerciseSourceType = (typeof EXERCISE_SOURCE_TYPES)[number];
 
 export const EXERCISE_SOURCE_TYPE_LABELS: Record<ExerciseSourceType, string> = {
   cke: "CKE",
@@ -69,20 +33,18 @@ export const EXERCISE_SOURCE_TYPE_LABELS: Record<ExerciseSourceType, string> = {
 // BLOKI TREŚCI (DISCRIMINATED UNIONS)
 // ==========================================
 
-export type ExerciseTextStyle = "normal" | "intro" | "instruction";
-
 export type ApiExerciseBlock =
-  | { type: "text"; text: string; style?: ExerciseTextStyle }
+  | { type: "text"; text: string }
   | { type: "image"; asset_id: number; caption?: string | null; url: string }
   | { type: "file"; asset_id: number; name?: string | null; url: string };
 
 export type ExerciseBlock =
-  | { id: string; type: "text"; content: string; style: ExerciseTextStyle }
+  | { id: string; type: "text"; content: string }
   | { id: string; type: "image"; assetId: number; caption: string | null }
   | { id: string; type: "file"; assetId: number; name: string | null };
 
 export type ExerciseBlockPayload =
-  | { type: "text"; text: string; style: ExerciseTextStyle }
+  | { type: "text"; text: string }
   | { type: "image"; asset_id: number; caption: string | null }
   | { type: "file"; asset_id: number; name: string | null };
 
@@ -101,10 +63,11 @@ export interface Tag {
 export interface Category {
   id: string;
   name: string;
+  path: string[];
 }
 
 // * Węzeł drzewa kategorii (do renderowania hierarchii)
-export interface CategoryNode extends Category {
+export interface CategoryNode extends Omit<Category, "path"> {
   parentId: string | null;
   children: CategoryNode[];
 }
@@ -143,20 +106,13 @@ export interface ApiExerciseListItem {
   tags: ApiTag[];
   categories: ApiCategoryRef[];
   is_owner: boolean;
-  set_count: number;
   has_solution: boolean;
   updated_at: string;
-}
-
-export interface ApiExercisePage {
-  items: ApiExerciseListItem[];
-  total: number;
 }
 
 export interface ApiExercise extends Omit<ApiExerciseListItem, "has_solution"> {
   content: ApiExerciseBlock[];
   solution: ApiExerciseBlock[] | null;
-  grading_rules_url: string | null;
   created_at: string;
 }
 
@@ -174,11 +130,9 @@ export interface Exercise {
   points: number | null;
   content: ExerciseBlock[];
   solution: ExerciseBlock[] | null;
-  gradingRulesUrl: string | null;
   tags: Tag[];
   categories: Category[];
   isOwner: boolean;
-  setCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -199,7 +153,6 @@ export interface ExerciseListItem {
   categories: Category[];
   hasSolution: boolean;
   isOwner: boolean;
-  setCount: number;
   updatedAt: Date;
 }
 

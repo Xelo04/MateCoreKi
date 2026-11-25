@@ -90,7 +90,7 @@ export function WeeklyCalendar({
         key={item.id}
         role="button"
         tabIndex={0}
-        aria-label={`${item.studentFirstName} ${item.studentLastName}, ${item.startTime}–${endTime}`}
+        aria-label={`${item.studentFirstName} ${item.studentLastName}, ${item.startTime}-${endTime}`}
         onClick={(e) => {
           e.stopPropagation();
           onItemClick?.(item);
@@ -195,7 +195,7 @@ export function WeeklyCalendar({
         </div>
       )}
 
-      {/* * Nagłówki dni tygodnia (pon–niedz) */}
+      {/* * Nagłówki dni tygodnia (pon-niedz) */}
       <div className="grid grid-cols-[50px_1fr] md:grid-cols-[60px_1fr] border-b border-border/60 bg-muted/30 relative z-10 shrink-0">
         <div className="border-r border-border/50" />
         <div className="grid grid-cols-1 xl:grid-cols-7">

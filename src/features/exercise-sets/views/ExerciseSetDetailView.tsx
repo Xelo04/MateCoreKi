@@ -40,11 +40,9 @@ import type { Exercise } from "@/features/exercise-database/types";
 import {
   formatDateTime,
   formatExerciseCount,
-  getPreviewTags,
-  getSetVisuals,
   hasExerciseSolution,
-  sumExercisePoints,
 } from "@/features/exercise-database/utils";
+import { getPreviewTags, getSetVisuals, sumExercisePoints } from "../utils";
 
 // ==========================================
 // STAŁE

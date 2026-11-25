@@ -660,8 +660,8 @@ function DesktopLessonBlock({
         e.stopPropagation();
         onClick(item);
       }}
-      aria-label={`Lekcja ${item.startTime}–${endTime}, status ${item.status}`}
-      title={`${item.startTime}–${endTime} (${item.durationMins} min)${
+      aria-label={`Lekcja ${item.startTime}-${endTime}, status ${item.status}`}
+      title={`${item.startTime}-${endTime} (${item.durationMins} min)${
         item.topic ? ` · ${item.topic}` : ""
       }`}
       className={cn(
@@ -776,7 +776,7 @@ function MobileLessonCard({ item, colorInfo, onClick }: MobileLessonCardProps) {
             isMoved && "text-muted-foreground",
           )}
         >
-          {item.startTime} – {endTime}
+          {item.startTime} - {endTime}
         </span>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

@@ -5,7 +5,6 @@
 // * Pojedyncze zadania są odczytywane przez publiczny serwis exercise-database.
 
 import { ExerciseService } from "@/features/exercise-database/service";
-import { getPreviewTags } from "@/features/exercise-database/utils";
 import type {
   ApiExerciseSet,
   ExerciseSet,
@@ -157,33 +156,22 @@ const mapItems = async (
   return mapped;
 };
 
-const mapListItem = async (
-  api: ApiExerciseSet,
-): Promise<ExerciseSetListItem> => {
-  const exercises = await Promise.all(
-    sortItems(api.exercise_items).map((item) =>
-      ExerciseService.getExercise(item.exercise_id),
-    ),
-  );
-  return {
-    id: api.id,
-    name: api.name,
-    description: api.description,
-    folderId: api.folder_id,
-    exerciseCount: api.exercise_items.length,
-    previewTags: getPreviewTags(
-      exercises.filter((exercise) => exercise !== null).map((exercise) => exercise.tags),
-    ),
-    updatedAt: new Date(api.updated_at),
-  };
-};
+const mapListItem = (api: ApiExerciseSet): ExerciseSetListItem => ({
+  id: api.id,
+  name: api.name,
+  description: api.description,
+  folderId: api.folder_id,
+  exerciseCount: api.exercise_items.length,
+  previewTags: [],
+  updatedAt: new Date(api.updated_at),
+});
 
 export const ExerciseSetService = {
   // * Pobiera listę zestawów z liczbą zadań i tagami podglądowymi.
   // TODO: [BACKEND] GET /api/v1/exercises/sets
   async getList(): Promise<ExerciseSetListItem[]> {
     await delay(MOCK_LATENCY_MS.medium);
-    const items = await Promise.all(mockSets.map(mapListItem));
+    const items = mockSets.map(mapListItem);
     return items.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   },
 

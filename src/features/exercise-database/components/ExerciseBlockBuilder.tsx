@@ -24,7 +24,7 @@ import {
   type ExerciseFormBlockData,
   type ExerciseFormData,
 } from "../schema";
-import { isPdfFile } from "./ExerciseContentRenderer";
+import { isPdfFile } from "../utils";
 
 const MathTextEditor = dynamic(() => import("./MathTextEditor"), {
   ssr: false,
@@ -158,31 +158,29 @@ export function ExerciseBlockBuilder({
                   </button>
                 </div>
               </div>
-              {isText && (
+              {field.type === "text" && (
                 <div className="min-w-0 px-3 pb-4 sm:px-4">
-                  {field.type === "text" && (
-                    <Controller
-                      control={control}
-                      name={`${name}.${index}.content`}
-                      render={({ field: input, fieldState }) => (
-                        <>
-                          <MathTextEditor
-                            value={input.value}
-                            onChange={input.onChange}
-                            label={`Blok tekstowy ${index + 1}`}
-                          />
-                          {fieldState.error && (
-                            <p
-                              role="alert"
-                              className="text-sm text-destructive"
-                            >
-                              {fieldState.error.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  )}
+                  <Controller
+                    control={control}
+                    name={`${name}.${index}.content`}
+                    render={({ field: input, fieldState }) => (
+                      <>
+                        <MathTextEditor
+                          value={input.value}
+                          onChange={input.onChange}
+                          label={`Blok tekstowy ${index + 1}`}
+                        />
+                        {fieldState.error && (
+                          <p
+                            role="alert"
+                            className="text-sm text-destructive"
+                          >
+                            {fieldState.error.message}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  />
                 </div>
               )}
             </div>
@@ -200,7 +198,7 @@ export function ExerciseBlockBuilder({
           variant="outline"
           className="h-11 flex-1 rounded-xl font-semibold shadow-sm"
           disabled={fields.length >= 100}
-          onClick={() => append({ type: "text", content: "", style: "normal" })}
+          onClick={() => append({ type: "text", content: "" })}
         >
           <Type className="mr-2 h-4 w-4" aria-hidden="true" /> Dodaj tekst
         </Button>
@@ -230,7 +228,7 @@ export function ExerciseBlockBuilder({
               file.size > EXERCISE_FILE_LIMITS.maxFileSizeBytes
             ) {
               toast.error(
-                "Plik musi mieć więcej niż 0 bajtów i maksymalnie 10 MB.",
+                "Plik musi mieć więcej niż 0 bajtów i maksymalnie 10 MiB.",
               );
               return;
             }
@@ -250,7 +248,7 @@ export function ExerciseBlockBuilder({
           }}
         />
         <span className="w-full text-center text-xs text-muted-foreground">
-          PNG, JPEG, WebP lub PDF do 10 MB
+          PNG, JPEG, WebP lub PDF do 10 MiB. Typ pliku zostanie sprawdzony przez serwer.
         </span>
       </div>
       {rootError && (

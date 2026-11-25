@@ -11,7 +11,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import type { CategoryTreeLike } from "../utils";
+import { isCategorySelected, type CategoryTreeLike } from "../utils";
 
 // ----- TYPY -----
 
@@ -66,7 +66,7 @@ export function CollapsibleCategoryNode({
         {/* * Checkbox wyboru kategorii z powiązaną etykietą */}
         <Checkbox
           id={checkboxId}
-          checked={selectedIds.includes(node.id)}
+          checked={isCategorySelected(node, selectedIds)}
           onCheckedChange={(checked) => onToggle(node.id, checked === true)}
         />
         <Label

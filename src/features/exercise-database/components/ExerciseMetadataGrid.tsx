@@ -7,21 +7,19 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { format } from "date-fns";
-import { pl } from "date-fns/locale";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ListStates";
+import { ContentLoader } from "@/components/layout/ContentLoader";
 import { cn } from "@/lib/utils";
-import {
-  EXERCISE_DIFFICULTY_LABELS,
-  EXERCISE_MATH_LEVEL_LABELS,
-  EXERCISE_SOURCE_TYPE_LABELS,
-  EXERCISE_TYPE_LABELS,
-  type Exercise,
-} from "../types";
+import type { Exercise } from "../types";
+import { useExerciseMeta } from "../hook";
 import {
   DIFFICULTY_STYLES,
+  formatDateTime,
+  getSourceTypeLabel,
+  metaLabel,
   SOURCE_TYPE_ICONS,
   SOURCE_TYPE_ICON_COLORS,
 } from "../utils";
@@ -32,10 +30,6 @@ import { MathLevelIcon } from "./MathLevelIcon";
 // ==========================================
 
 const EMPTY_VALUE = "-";
-
-// * Daty z API to pełne timestampy ISO (mappery w types.ts) — format polski
-const formatDateTime = (date: Date): string =>
-  format(date, "dd MMM yyyy, HH:mm", { locale: pl });
 
 // ==========================================
 // KOMPONENT WEWNĘTRZNY: Pojedyncza komórka
@@ -109,11 +103,14 @@ export function ExerciseMetadataGrid({
 }: {
   readonly exercise: Exercise;
 }) {
+  const { meta, error, retry } = useExerciseMeta();
   const SourceIcon = SOURCE_TYPE_ICONS[exercise.sourceType];
   const difficultyStyle = exercise.difficulty
     ? DIFFICULTY_STYLES[exercise.difficulty]
     : null;
 
+  if (error) return <ErrorState message={error} onRetry={retry} />;
+  if (!meta) return <ContentLoader minHeight="h-12" />;
   return (
     <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {/* * Poziom edukacji (ikona + etykieta) */}
@@ -124,7 +121,7 @@ export function ExerciseMetadataGrid({
               level={exercise.mathLevel}
               className="mr-2 h-4 w-4 text-muted-foreground"
             />
-            {EXERCISE_MATH_LEVEL_LABELS[exercise.mathLevel]}
+            {metaLabel(meta.math_levels, exercise.mathLevel)}
           </>
         ) : (
           EMPTY_VALUE
@@ -143,7 +140,7 @@ export function ExerciseMetadataGrid({
               difficultyStyle.text,
             )}
           >
-            {EXERCISE_DIFFICULTY_LABELS[exercise.difficulty]}
+            {metaLabel(meta.difficulties, exercise.difficulty)}
           </Badge>
         ) : (
           EMPTY_VALUE
@@ -159,11 +156,11 @@ export function ExerciseMetadataGrid({
           )}
           aria-hidden="true"
         />
-        {EXERCISE_SOURCE_TYPE_LABELS[exercise.sourceType]}
+        {getSourceTypeLabel(exercise.sourceType)}
       </MetadataItem>
 
       <MetadataItem label="Typ zadania">
-        {EXERCISE_TYPE_LABELS[exercise.exerciseType]}
+        {metaLabel(meta.exercise_types, exercise.exerciseType)}
       </MetadataItem>
 
       {/* * Kategorie (działy) */}
@@ -176,7 +173,7 @@ export function ExerciseMetadataGrid({
                 variant="outline"
                 className="rounded-sm font-normal"
               >
-                {category.name}
+                {category.path.join(" › ")}
               </Badge>
             ))}
           </div>

@@ -534,7 +534,7 @@ export const LessonForm = forwardRef<LessonFormHandle, LessonFormProps>(
                         className="text-[11px] font-medium"
                       >
                         {c.studentFirstName} {c.studentLastName} ·{" "}
-                        {formatConflictDate(c.date)} · {c.startTime}–{c.endTime}
+                        {formatConflictDate(c.date)} · {c.startTime}-{c.endTime}
                       </li>
                     ))}
                     {conflicts.length > 3 && (

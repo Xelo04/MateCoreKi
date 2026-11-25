@@ -29,11 +29,9 @@ import { useTags } from "@/features/exercise-database/hook";
 import type { ExerciseSetListItem } from "../types";
 import {
   compareByUpdatedAtDesc,
-  getLabelEntries,
-  getSetVisuals,
-  isLabelKey,
   smartSearch,
 } from "@/features/exercise-database/utils";
+import { getLabelEntries, getSetVisuals, isLabelKey } from "../utils";
 import { EmptyState, ErrorState } from "@/components/ListStates";
 import { ContentLoader } from "@/components/layout/ContentLoader";
 import { ExerciseSetCard } from "./ExerciseSetCard";

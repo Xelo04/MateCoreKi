@@ -15,9 +15,8 @@ import { Button } from "@/components/ui/button";
 import { ModalShell } from "@/components/ui/modal-shell";
 
 import { ExerciseForm, type ExerciseFormHandle, type FormTabId } from "./ExerciseForm";
-import type { ExerciseFormBlockData, ExerciseFormData } from "../schema";
-import { ExerciseService } from "../service";
-import type { Exercise, ExerciseBlock } from "../types";
+import type { ExerciseFormData } from "../schema";
+import { ExerciseService, mapExerciseToFormData } from "../service";
 
 // ==========================================
 // TYPY
@@ -29,33 +28,6 @@ interface ExerciseFormModalProps {
   readonly exerciseId?: string;
   readonly onSuccess?: () => void;
 }
-
-// ==========================================
-// MAPOWANIE: Exercise (model domenowy) → dane formularza
-// ==========================================
-
-// * Blok domenowy → blok formularza (zachowuje id, by nie gubić tożsamości bloków przy edycji)
-const mapBlockToFormBlock = (block: ExerciseBlock): ExerciseFormBlockData => {
-  if (block.type === "text") {
-    return { id: block.id, type: "text", content: block.content, style: block.style };
-  }
-  if (block.type === "image") return { id: block.id, type: "image", assetId: block.assetId, caption: block.caption };
-  return { id: block.id, type: "file", assetId: block.assetId, name: block.name };
-};
-
-const mapExerciseToFormData = (
-  exercise: Exercise,
-): Partial<ExerciseFormData> => ({
-  title: exercise.title,
-  exerciseTypeCode: exercise.exerciseType,
-  mathLevel: exercise.mathLevel,
-  difficulty: exercise.difficulty,
-  points: exercise.points,
-  categoryIds: exercise.categories.map((category) => category.id),
-  tagIds: exercise.tags.map((tag) => tag.id),
-  content: exercise.content.map(mapBlockToFormBlock),
-  solution: exercise.solution ? exercise.solution.map(mapBlockToFormBlock) : [],
-});
 
 // ==========================================
 // KOMPONENT WEWNĘTRZNY: Treść modala (stan żyje tylko przy otwartym modalu)
@@ -138,8 +110,7 @@ function ExerciseFormModalBody({
 
     onSubmittingChange(true);
     try {
-      const result = await formRef.current.submit();
-      if (result.success) {
+      if (await formRef.current.submit()) {
         onClose();
         onSuccess?.();
       }

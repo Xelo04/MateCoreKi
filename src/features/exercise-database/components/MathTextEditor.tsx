@@ -28,7 +28,7 @@ import {
   decodeMathContent,
   encodeMathContent,
   type MathContentPart,
-} from "../math-content";
+} from "../utils";
 import { MathDisplay } from "./ExerciseContentRenderer";
 import styles from "./MathTextEditor.module.css";
 import "katex/dist/katex.min.css";
@@ -238,7 +238,7 @@ function partsToDocument(parts: readonly MathContentPart[]): JSONContent {
   const content: JSONContent[] = [];
   for (const part of parts) {
     if (part.type === "math") {
-      content.push({ type: "inlineMath", attrs: { latex: part.latex } });
+      content.push({ type: "inlineMath", attrs: { latex: part.latex, display: part.display ?? false } });
       continue;
     }
     const lines = part.text.split("\n");
@@ -265,7 +265,7 @@ function documentToParts(document: JSONContent): MathContentPart[] {
         appendText(node.text);
       if (node.type === "hardBreak") appendText("\n");
       if (node.type === "inlineMath" && typeof node.attrs?.latex === "string") {
-        result.push({ type: "math", latex: node.attrs.latex });
+        result.push({ type: "math", latex: node.attrs.latex, display: node.attrs.display === true });
       }
     });
   });
@@ -622,7 +622,24 @@ function MathTextEditorBody({
         strike: false,
         underline: false,
       }),
-      InlineMath.configure({
+      InlineMath.extend({
+        addAttributes() {
+          return { ...this.parent?.(), display: { default: false } };
+        },
+        addNodeView() {
+          const createView = this.parent?.();
+          if (!createView) throw new Error("Nie można utworzyć edytora wzoru.");
+          return (props) => {
+            const view = createView(props);
+            if (props.node.attrs.display && view.dom instanceof HTMLElement) {
+              katex.render(props.node.attrs.latex, view.dom, {
+                displayMode: true, throwOnError: false, trust: false,
+              });
+            }
+            return view;
+          };
+        },
+      }).configure({
         katexOptions: { throwOnError: false, trust: false },
         onClick: (node, position) => {
           if (typeof node.attrs.latex === "string") {

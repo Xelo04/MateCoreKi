@@ -319,7 +319,7 @@ export function LessonDetailsModal({
               <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground mt-1.5">
                 <Clock className="h-4 w-4 shrink-0" />
                 <span>
-                  {item.startTime} – {endTime}
+                  {item.startTime} - {endTime}
                   <span className="ml-1 hidden xs:inline-block">
                     ({item.durationMins} min)
                   </span>
@@ -623,7 +623,9 @@ export function LessonDetailsModal({
                         name="dayOfWeek"
                         render={({ field }) => (
                           <Select
-                            value={field.value != null ? String(field.value) : ""}
+                            value={
+                              field.value != null ? String(field.value) : ""
+                            }
                             onValueChange={(v) => field.onChange(Number(v))}
                           >
                             <SelectTrigger

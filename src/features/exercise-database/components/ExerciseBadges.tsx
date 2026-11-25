@@ -5,6 +5,7 @@
 // * Kolory i ikony pochodzą z utils.ts — jedno źródło prawdy dla całego modułu.
 
 import { cn } from "@/lib/utils";
+import { useExerciseMeta } from "../hook";
 import type {
   ExerciseDifficulty,
   ExerciseMathLevel,
@@ -13,14 +14,12 @@ import type {
 } from "../types";
 import {
   SOURCE_TYPE_ICONS,
-  getDifficultyLabel,
   getDifficultyStyle,
-  getExerciseTypeLabel,
   getExerciseTypeStyle,
-  getMathLevelLabel,
   getMathLevelStyle,
   getSourceTypeLabel,
   getSourceTypeStyle,
+  metaLabel,
 } from "../utils";
 import { MathLevelIcon } from "./MathLevelIcon";
 
@@ -36,6 +35,7 @@ export function DifficultyBadge({
   readonly difficulty: ExerciseDifficulty;
 }) {
   const style = getDifficultyStyle(difficulty);
+  const { meta, error } = useExerciseMeta();
 
   return (
     <span className={cn(PILL_CLASSES, style.border, style.bg, style.text)}>
@@ -43,7 +43,7 @@ export function DifficultyBadge({
         className={cn("h-1.5 w-1.5 rounded-full", style.dot)}
         aria-hidden="true"
       />
-      {getDifficultyLabel(difficulty)}
+      {meta ? metaLabel(meta.difficulties, difficulty) : error ?? "Ładowanie..."}
     </span>
   );
 }
@@ -51,10 +51,11 @@ export function DifficultyBadge({
 // ----- Poziom edukacji (ikona + etykieta) -----
 
 export function LevelBadge({ level }: { readonly level: ExerciseMathLevel }) {
+  const { meta, error } = useExerciseMeta();
   return (
     <span className={cn(PILL_CLASSES, getMathLevelStyle(level))}>
       <MathLevelIcon level={level} className="h-3 w-3" />
-      {getMathLevelLabel(level)}
+      {meta ? metaLabel(meta.math_levels, level) : error ?? "Ładowanie..."}
     </span>
   );
 }
@@ -79,9 +80,10 @@ export function SourceBadge({
 // ----- Typ zadania (jeden wspólny styl indigo) -----
 
 export function ExerciseTypeBadge({ type }: { readonly type: ExerciseType }) {
+  const { meta, error } = useExerciseMeta();
   return (
     <span className={cn(PILL_CLASSES, getExerciseTypeStyle())}>
-      {getExerciseTypeLabel(type)}
+      {meta ? metaLabel(meta.exercise_types, type) : error ?? "Ładowanie..."}
     </span>
   );
 }

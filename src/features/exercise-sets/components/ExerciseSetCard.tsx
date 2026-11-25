@@ -20,7 +20,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ExerciseSetListItem } from "../types";
-import { formatExerciseCount, getSetVisuals } from "@/features/exercise-database/utils";
+import { formatExerciseCount } from "@/features/exercise-database/utils";
+import { getSetVisuals } from "../utils";
 
 // ----- TYPY -----
 

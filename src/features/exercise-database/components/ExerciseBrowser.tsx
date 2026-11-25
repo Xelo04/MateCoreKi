@@ -25,6 +25,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ContentLoader } from "@/components/layout/ContentLoader";
+import { ErrorState } from "@/components/ListStates";
 import { TreeSelect } from "@/components/ui/tree-select";
 import {
   Popover,
@@ -49,19 +50,15 @@ import {
   ALL_FILTER_VALUE,
   filterExercises,
   getExerciseFacetCounts,
-  getLabelEntries,
   hasActiveExerciseFilters,
+  getSourceTypeLabel,
+  metaLabel,
   type ExerciseFilters,
 } from "../utils";
+import { useExerciseMeta } from "../hook";
 import {
-  EXERCISE_TYPE_LABELS,
-  EXERCISE_MATH_LEVEL_LABELS,
   type CategoryNode,
-  type ExerciseDifficulty,
   type ExerciseListItem,
-  type ExerciseMathLevel,
-  type ExerciseSourceType,
-  type ExerciseType,
 } from "../types";
 
 // ==========================================
@@ -83,35 +80,16 @@ interface ExerciseBrowserProps {
     readonly setFilters: Dispatch<SetStateAction<ExerciseFilters>>;
   };
   readonly searchInHeader?: boolean;
-  readonly headerAction?: React.ReactNode;
   readonly sectionTitle?: string;
   readonly filterAction?: React.ReactNode;
   readonly listMode?: "expandable" | "scrollable";
-  readonly initialLimit?: number;
   readonly emptyMessage?: string;
 }
 
 // ! Stała modułowa: domyślny `new Set()` w destrukturyzacji propsów tworzyłby nową
 // ! referencję w każdym renderze i unieważniał useMemo filtrowania.
 const EMPTY_ID_SET: ReadonlySet<string> = new Set<string>();
-
-// * Etykiety legendy (krótsze/inne niż w selectach, dlatego osobne słowniki)
-const LEGEND_DIFFICULTY_LABELS: Record<ExerciseDifficulty, string> = {
-  easy: "Łatwy",
-  medium: "Średni",
-  hard: "Trudny",
-};
-const LEGEND_SOURCE_LABELS: Record<ExerciseSourceType, string> = {
-  cke: "CKE",
-  tutor: "Własne",
-  generated: "AI",
-};
-const LEGEND_LEVEL_LABELS: Record<ExerciseMathLevel, string> = {
-  primary_1_3: "Klasy 1-3",
-  primary_4_8: "Klasy 4-8",
-  highschool_basic: "Matura podstawowa",
-  highschool_extended: "Matura rozszerzona",
-};
+const INITIAL_EXERCISE_LIMIT = 6;
 
 // ==========================================
 // KOMPONENT GŁÓWNY
@@ -129,13 +107,12 @@ export function ExerciseBrowser({
   onView,
   filterState,
   searchInHeader = false,
-  headerAction,
   sectionTitle,
   filterAction,
   listMode = "expandable",
-  initialLimit = 6,
   emptyMessage = "Brak zadań w bazie",
 }: ExerciseBrowserProps) {
+  const { meta, error: metaError, retry } = useExerciseMeta();
   const [localFilters, setLocalFilters] = useState<ExerciseFilters>(
     DEFAULT_EXERCISE_FILTERS,
   );
@@ -172,12 +149,15 @@ export function ExerciseBrowser({
   );
   const countsLoading = isLoading || isCategoriesLoading;
 
+  if (metaError) return <ErrorState message={metaError} onRetry={retry} />;
+  if (!meta) return <ContentLoader minHeight="h-[350px]" />;
+
   const hasActiveFilters = hasActiveExerciseFilters(filters);
 
   const visibleExercises =
     listMode === "scrollable" || showAll
       ? filteredExercises
-      : filteredExercises.slice(0, initialLimit);
+      : filteredExercises.slice(0, INITIAL_EXERCISE_LIMIT);
   const additionalFilters: readonly ("points" | "solution")[] = [
     ...(filters.hasPoints ? (["points"] as const) : []),
     ...(filters.hasSolution ? (["solution"] as const) : []),
@@ -185,7 +165,6 @@ export function ExerciseBrowser({
 
   return (
     <section className="space-y-6">
-      {headerAction}
       {sectionTitle && (
         <div className="flex items-center gap-2">
           <Database className="h-6 w-6 text-primary" aria-hidden="true" />
@@ -226,24 +205,25 @@ export function ExerciseBrowser({
           <div className="grid gap-4">
             <div className="grid gap-3 lg:grid-cols-3">
               <Select
-                value={filters.level[0] ?? "all"}
-                onValueChange={(value) =>
-                  updateFilter(
-                    "level",
-                    value === "all" ? [] : [value as ExerciseMathLevel],
-                  )
-                }
+                value={filters.level[0] ?? ALL_FILTER_VALUE}
+                onValueChange={(value) => {
+                  if (value === ALL_FILTER_VALUE) updateFilter("level", []);
+                  else {
+                    const option = meta.math_levels.find((item) => item.code === value);
+                    if (option) updateFilter("level", [option.code]);
+                  }
+                }}
               >
                 <SelectTrigger aria-label="Poziom" className="h-11 w-full rounded-xl">
                   <SelectValue>
                     {filters.level[0]
-                      ? EXERCISE_MATH_LEVEL_LABELS[filters.level[0]]
+                      ? metaLabel(meta.math_levels, filters.level[0])
                       : "Wszystkie poziomy"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <FacetSelectItem value="all" label="Wszystkie poziomy" count={counts.allLevels} isLoading={countsLoading} />
-                  {getLabelEntries(EXERCISE_MATH_LEVEL_LABELS).map(([value, label]) => (
+                  {meta.math_levels.map(({ code: value, name: label }) => (
                     <FacetSelectItem key={value} value={value} label={label} count={counts.levels.get(value) ?? 0} isLoading={countsLoading} />
                   ))}
                 </SelectContent>
@@ -268,24 +248,25 @@ export function ExerciseBrowser({
                 className="w-full"
               />
               <Select
-                value={filters.type[0] ?? "all"}
-                onValueChange={(value) =>
-                  updateFilter(
-                    "type",
-                    value === "all" ? [] : [value as ExerciseType],
-                  )
-                }
+                value={filters.type[0] ?? ALL_FILTER_VALUE}
+                onValueChange={(value) => {
+                  if (value === ALL_FILTER_VALUE) updateFilter("type", []);
+                  else {
+                    const option = meta.exercise_types.find((item) => item.code === value);
+                    if (option) updateFilter("type", [option.code]);
+                  }
+                }}
               >
                 <SelectTrigger aria-label="Typ zadania" className="h-11 w-full rounded-xl">
                   <SelectValue>
                     {filters.type[0]
-                      ? EXERCISE_TYPE_LABELS[filters.type[0]]
+                      ? metaLabel(meta.exercise_types, filters.type[0])
                       : "Wszystkie typy zadań"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <FacetSelectItem value="all" label="Wszystkie typy zadań" count={counts.allTypes} isLoading={countsLoading} />
-                  {getLabelEntries(EXERCISE_TYPE_LABELS).map(([value, label]) => (
+                  {meta.exercise_types.map(({ code: value, name: label }) => (
                     <FacetSelectItem key={value} value={value} label={label} count={counts.types.get(value) ?? 0} isLoading={countsLoading} />
                   ))}
                 </SelectContent>
@@ -297,22 +278,14 @@ export function ExerciseBrowser({
                 icon={ChartNoAxesColumnIncreasing}
                 value={filters.difficulty}
                 onChange={(value) => updateFilter("difficulty", value)}
-                options={[
-                  ["easy", "Łatwe"],
-                  ["medium", "Średnie"],
-                  ["hard", "Trudne"],
-                ]}
+                options={meta.difficulties.map(({ code, name }) => [code, name])}
               />
               <SegmentedFilter
                 label="Źródło"
                 icon={BookSearch}
                 value={filters.source}
                 onChange={(value) => updateFilter("source", value)}
-                options={[
-                  ["cke", "CKE"],
-                  ["tutor", "Własne"],
-                  ["generated", "AI"],
-                ]}
+                options={meta.source_types.map(({ code }) => [code, getSourceTypeLabel(code)])}
               />
               <SegmentedFilter
                 label="Dodatkowo"
@@ -363,7 +336,7 @@ export function ExerciseBrowser({
                       borderColor: "var(--border)",
                     }}
                   >
-                    <ExerciseLegend />
+                    <ExerciseLegend meta={meta} />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -428,7 +401,7 @@ export function ExerciseBrowser({
 
           {/* * Przełącznik „Pokaż wszystkie / Zwiń” (tylko tryb expandable) */}
           {listMode === "expandable" &&
-            filteredExercises.length > initialLimit && (
+            filteredExercises.length > INITIAL_EXERCISE_LIMIT && (
               <div className="flex justify-center pt-2 lg:col-span-2">
                 <Button
                   type="button"
@@ -552,14 +525,6 @@ function getFilterPillClass(value: string): string {
       return "!border-2 !border-blue-500 !bg-blue-500/15 !text-blue-700 hover:!bg-blue-500/20";
     case "generated":
       return "!border-2 !border-purple-500 !bg-purple-500/15 !text-purple-700 hover:!bg-purple-500/20";
-    case "primary_1_3":
-      return "!border-2 !border-emerald-500 !bg-emerald-500/15 !text-emerald-700 hover:!bg-emerald-500/20";
-    case "primary_4_8":
-      return "!border-2 !border-teal-500 !bg-teal-500/15 !text-teal-700 hover:!bg-teal-500/20";
-    case "highschool_basic":
-      return "!border-2 !border-sky-500 !bg-sky-500/15 !text-sky-700 hover:!bg-sky-500/20";
-    case "highschool_extended":
-      return "!border-2 !border-violet-500 !bg-violet-500/15 !text-violet-700 hover:!bg-violet-500/20";
     case "points":
       return "!border-2 !border-amber-500 !bg-amber-500/15 !text-amber-700 hover:!bg-amber-500/20";
     case "solution":
@@ -579,14 +544,6 @@ function getFilterPillHoverClass(value: string): string {
     tutor: "hover:border-blue-500/50 hover:bg-blue-500/5 hover:text-blue-700",
     generated:
       "hover:border-purple-500/50 hover:bg-purple-500/5 hover:text-purple-700",
-    primary_1_3:
-      "hover:border-emerald-500/50 hover:bg-emerald-500/5 hover:text-emerald-700",
-    primary_4_8:
-      "hover:border-teal-500/50 hover:bg-teal-500/5 hover:text-teal-700",
-    highschool_basic:
-      "hover:border-sky-500/50 hover:bg-sky-500/5 hover:text-sky-700",
-    highschool_extended:
-      "hover:border-violet-500/50 hover:bg-violet-500/5 hover:text-violet-700",
     points:
       "hover:border-amber-500/50 hover:bg-amber-500/5 hover:text-amber-700",
     solution: "hover:border-primary/50 hover:bg-primary/5 hover:text-primary",
@@ -626,12 +583,12 @@ function LegendGroup({
 // ==========================================
 // * Generowana z tych samych map co wiersz listy (utils.ts) — legenda nie rozjedzie się z ikonami.
 
-function ExerciseLegend() {
+function ExerciseLegend({ meta }: { readonly meta: NonNullable<ReturnType<typeof useExerciseMeta>["meta"]> }) {
   return (
     <div className="grid w-full gap-4 pb-3 text-sm text-foreground sm:grid-cols-2 xl:grid-cols-4">
       {/* * Trudność: kolorowa kropka + etykieta */}
       <LegendGroup title="Trudność:">
-        {getLabelEntries(LEGEND_DIFFICULTY_LABELS).map(([code, label]) => (
+        {meta.difficulties.map(({ code, name: label }) => (
           <span key={code} className="inline-flex items-center">
             <span
               className={cn(
@@ -647,7 +604,7 @@ function ExerciseLegend() {
 
       {/* * Źródło: ikona + etykieta */}
       <LegendGroup title="Źródło:">
-        {getLabelEntries(LEGEND_SOURCE_LABELS).map(([code, label]) => {
+        {meta.source_types.map(({ code }) => {
           const Icon = SOURCE_TYPE_ICONS[code];
           return (
             <span key={code} className="inline-flex items-center">
@@ -658,7 +615,7 @@ function ExerciseLegend() {
                 )}
                 aria-hidden="true"
               />
-              {label}
+              {getSourceTypeLabel(code)}
             </span>
           );
         })}
@@ -666,7 +623,7 @@ function ExerciseLegend() {
 
       {/* * Poziom: ikona + etykieta */}
       <LegendGroup title="Poziom:">
-        {getLabelEntries(LEGEND_LEVEL_LABELS).map(([code, label]) => {
+        {meta.math_levels.map(({ code, name: label }) => {
           const Icon = MATH_LEVEL_ICONS[code];
           return (
             <span key={code} className="inline-flex items-center">

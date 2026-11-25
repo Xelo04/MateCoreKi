@@ -66,24 +66,24 @@ W bloku tekstu przycisk „Wstaw wzór matematyczny” otwiera edytor z symbolam
 Symbole są pogrupowane w zakładkach; pierwsza zawiera najczęściej używane.
 Na małych ekranach po wybraniu pola wzoru pojawia się klawiatura ekranowa.
 Wzory można umieszczać między fragmentami tekstu i edytować przez kliknięcie.
-Teksty z poprawnymi wzorami między pojedynczymi znakami `$` są wyświetlane
-i otwierane w edytorze jako wzory.
+Wzory między pojedynczymi znakami `$` są wyświetlane w tekście, a wzory
+między `$$` jako osobne wzory. Oba formaty można edytować.
 
 Format pola `text` bloku API jest następujący:
 
 - Tekst i wzory są zapisywane razem, np. `Oblicz $x^2 + 1$.`.
 - Dosłowny znak dolara w tekście jest zapisywany jako `\$`; odwrotne ukośniki
   bezpośrednio przed dolarem są escapowane, aby ich nie utracić.
-- Nieprawidłowe i niezamknięte znaczniki pozostają tekstem.
+- Niezamknięte znaczniki pozostają tekstem; błędy renderowania wzoru są sygnalizowane.
 - Limit 10 000 znaków dotyczy całego pola `text` wraz ze znacznikami wzorów.
-  Backend traktuje pole jako tekst, w tym składnię LaTeX.
+  Łączny limit tekstu w każdej sekcji to 50 000 znaków.
 
 W treści i rozwiązaniu można dodać obrazy PNG, JPEG, WebP oraz pliki PDF
-o wielkości do 10 MB. Są przesyłane dopiero podczas zapisu zadania;
+o wielkości do 10 MiB. Są przesyłane dopiero podczas zapisu zadania;
 podgląd formularza i szczegóły zadania wyświetlają obrazy oraz PDF.
 Pośrednik Next.js uwierzytelnia dostęp do plików bez udostępniania tokena przeglądarce.
-Usunięcie bloku usuwa odwołanie z zadania, nie usuwa automatycznie pliku
-z backendu, ponieważ plik może być używany także gdzie indziej.
+Po zapisaniu zmian backend usuwa odłączony plik, jeśli nie jest już używany
+przez żadne zadanie; współdzielone pliki pozostają dostępne.
 Eksport zadania do PDF pozostaje odłożony do czasu dodania endpointu.
 Atrapy zestawów używają innych identyfikatorów niż API zadań i nie zostały
 jeszcze zintegrowane.

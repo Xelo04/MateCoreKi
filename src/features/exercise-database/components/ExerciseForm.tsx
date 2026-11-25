@@ -36,15 +36,9 @@ import { ExercisePreviewColumn } from "./ExercisePreviewColumn";
 // TYPY PUBLICZNE (WYKORZYSTYWANE PRZEZ MODAL)
 // ==========================================
 
-export interface ExerciseFormResult {
-  success: boolean;
-  data?: ExerciseFormData;
-  error?: string;
-}
-
 export interface ExerciseFormHandle {
   validateStep: () => Promise<boolean>;
-  submit: () => Promise<ExerciseFormResult>;
+  submit: () => Promise<boolean>;
 }
 
 interface ExerciseFormProps {
@@ -164,7 +158,7 @@ export const ExerciseForm = forwardRef<ExerciseFormHandle, ExerciseFormProps>(
                 shouldFocus: true,
               }),
         submit: () =>
-          new Promise<ExerciseFormResult>((resolve) => {
+          new Promise<boolean>((resolve) => {
             void handleSubmit(
               // * Walidacja przeszła — zapis przez serwis
               async (data: ExerciseFormData) => {
@@ -223,7 +217,7 @@ export const ExerciseForm = forwardRef<ExerciseFormHandle, ExerciseFormProps>(
                   for (const [file, asset] of uploads.current) {
                     if (usedIds.has(asset.id)) uploads.current.delete(file);
                   }
-                  resolve({ success: true, data });
+                  resolve(true);
                 } catch (err) {
                   if (
                     exerciseRequestStarted &&
@@ -247,17 +241,14 @@ export const ExerciseForm = forwardRef<ExerciseFormHandle, ExerciseFormProps>(
                       duration: saveOutcomeUnknown.current ? 15000 : undefined,
                     },
                   );
-                  resolve({
-                    success: false,
-                    error: "Nie udało się zapisać zadania",
-                  });
+                  resolve(false);
                 }
               },
               () => {
                 toast.error("Formularz zawiera błędy", {
                   description: "Sprawdź etapy i popraw zaznaczone pola.",
                 });
-                resolve({ success: false, error: "Formularz zawiera błędy" });
+                resolve(false);
               },
             )();
           }),

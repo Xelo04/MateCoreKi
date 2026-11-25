@@ -7,21 +7,21 @@
 import katex from "katex";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { decodeMathContent } from "../math-content";
+import { decodeMathContent, isPdfFile } from "../utils";
 import { LazyPdfPreview } from "./LazyPdfPreview";
 import "katex/dist/katex.min.css";
 
-export type RenderableBlock =
+type RenderableBlock =
   | { readonly id?: string; readonly type: "text"; readonly content: string }
   | { readonly id?: string; readonly type: "image"; readonly assetId: number; readonly caption?: string | null }
   | { readonly id?: string; readonly type: "file"; readonly assetId: number; readonly name?: string | null }
   | { readonly id?: string; readonly type: "pending"; readonly file: File };
 
-export function MathDisplay({ latex }: { readonly latex: string }) {
+export function MathDisplay({ latex, display = false }: { readonly latex: string; readonly display?: boolean }) {
   return <span ref={(element) => {
     if (!element) return;
     try {
-      katex.render(latex, element, { throwOnError: true, trust: false });
+      katex.render(latex, element, { throwOnError: true, trust: false, displayMode: display });
       element.removeAttribute("role");
     } catch (err) {
       console.error("Nie udało się wyświetlić wzoru matematycznego:", err instanceof Error ? err.name : "Nieznany błąd");
@@ -38,7 +38,7 @@ function TextBlock({ content }: { readonly content: string }) {
       {parts.map((part, index) =>
         part.type === "text"
           ? <span key={index}>{part.text}</span>
-          : <MathDisplay key={index} latex={part.latex} />,
+          : <MathDisplay key={index} latex={part.latex} display={part.display} />,
       )}
     </p>
   );
@@ -58,11 +58,6 @@ function AttachmentImage({ src, caption }: { readonly src: string; readonly capt
       {caption && <figcaption className="text-sm text-muted-foreground">{caption}</figcaption>}
     </figure>
   );
-}
-
-export function isPdfFile(file: File): boolean {
-  return file.type === "application/pdf" ||
-    (!["image/png", "image/jpeg", "image/webp"].includes(file.type) && /\.pdf$/i.test(file.name));
 }
 
 function PendingImage({ file }: { readonly file: File }) {

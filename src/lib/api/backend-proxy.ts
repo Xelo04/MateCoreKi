@@ -23,11 +23,9 @@ const routes: ReadonlyArray<{ path: RegExp; methods: readonly Method[] }> = [
   { path: /^\/api\/v1\/assets$/, methods: ["POST"] },
   { path: /^\/api\/v1\/assets\/[1-9]\d*$/, methods: ["GET", "DELETE"] },
   { path: /^\/api\/v1\/tags$/, methods: ["GET", "POST"] },
-  { path: /^\/api\/v1\/tags\/\d+$/, methods: ["PATCH", "DELETE"] },
   { path: /^\/api\/v1\/exercises\/meta$/, methods: ["GET"] },
   { path: /^\/api\/v1\/exercises$/, methods: ["GET", "POST"] },
   { path: /^\/api\/v1\/exercises\/\d+$/, methods: ["GET", "PATCH", "DELETE"] },
-  { path: /^\/api\/v1\/exercises\/\d+\/tags$/, methods: ["PUT"] },
   { path: /^\/api\/v1\/exercise-sets$/, methods: ["GET", "POST"] },
   { path: /^\/api\/v1\/exercise-sets\/\d+$/, methods: ["GET", "PATCH", "DELETE"] },
   { path: /^\/api\/v1\/assignments$/, methods: ["GET", "POST"] },
@@ -64,7 +62,7 @@ async function readUpload(request: Request): Promise<FormData | NextResponse> {
     total += value.byteLength;
     if (total > maxBodyBytes) {
       await reader.cancel();
-      return error("Plik może mieć maksymalnie 10 MB.", 413);
+      return error("Plik może mieć maksymalnie 10 MiB.", 413);
     }
     chunks.push(value);
   }
@@ -79,7 +77,7 @@ async function readUpload(request: Request): Promise<FormData | NextResponse> {
   if (entries.length !== 1 || entries[0][0] !== "file" || !(entries[0][1] instanceof File)) {
     return error("Prześlij jeden plik.", 422);
   }
-  if (entries[0][1].size > maxBytes) return error("Plik może mieć maksymalnie 10 MB.", 413);
+  if (entries[0][1].size > maxBytes) return error("Plik może mieć maksymalnie 10 MiB.", 413);
   return form;
 }
 

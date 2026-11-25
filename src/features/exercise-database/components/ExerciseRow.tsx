@@ -18,13 +18,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { ExerciseListItem } from "../types";
-import { getDifficultyStyle } from "../utils";
+import { useExerciseMeta } from "../hook";
 import { ExerciseTypeBadge } from "./ExerciseBadges";
 import {
   SOURCE_TYPE_ICONS,
   SOURCE_TYPE_ICON_COLORS,
-  getMathLevelLabel,
+  getDifficultyStyle,
   getSourceTypeLabel,
+  metaLabel,
 } from "../utils";
 import { MathLevelIcon } from "./MathLevelIcon";
 
@@ -51,12 +52,13 @@ export function ExerciseRow({
   action,
 }: ExerciseRowProps) {
   const router = useRouter();
+  const { meta } = useExerciseMeta();
 
   // * Kategorie i tagi w jednej liście pigułek (kategorie mają priorytet)
   const labels = [
     ...exercise.categories.map((category) => ({
       key: `cat-${category.id}`,
-      name: category.name,
+      name: category.path.join(" › "),
     })),
     ...exercise.tags.map((tag) => ({ key: `tag-${tag.id}`, name: tag.name })),
   ];
@@ -150,8 +152,8 @@ export function ExerciseRow({
               {exercise.mathLevel && (
                 <span
                   role="img"
-                  aria-label={`Poziom: ${getMathLevelLabel(exercise.mathLevel)}`}
-                  title={getMathLevelLabel(exercise.mathLevel)}
+                  aria-label={`Poziom: ${meta ? metaLabel(meta.math_levels, exercise.mathLevel) : "Ładowanie..."}`}
+                  title={meta ? metaLabel(meta.math_levels, exercise.mathLevel) : "Ładowanie..."}
                   className="flex items-center justify-center text-muted-foreground"
                 >
                   <MathLevelIcon

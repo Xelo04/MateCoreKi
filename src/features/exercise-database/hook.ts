@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/api-errors";
+import { useExerciseMetaStore } from "@/store/use-exercise-meta-store";
 import { ExerciseService } from "./service";
 import type {
   CategoryNode,
@@ -18,6 +19,12 @@ import type {
   ExerciseListItem,
   Tag,
 } from "./types";
+
+export function useExerciseMeta() {
+  const { meta, error, retry, load } = useExerciseMetaStore();
+  useEffect(() => { void load(); }, [load]);
+  return { meta, error, retry };
+}
 
 // ==========================================
 // INFRASTRUKTURA: Generyczny zasób pobierany z serwisu
@@ -74,9 +81,9 @@ function useServiceResource<T>(
         if (isCancelled) return;
         setState({ data, isLoading: false, error: null });
       } catch (err) {
-        console.error(`${messages.logContext}:`, err);
         // * Celowe wyciszenie po anulowaniu requestu (brak setState po unmount)
         if (isCancelled) return;
+        console.error(`${messages.logContext}:`, err);
         // * Zachowujemy poprzednie dane — błąd nie kasuje tego, co użytkownik już widzi
         setState((prev) => ({
           ...prev,

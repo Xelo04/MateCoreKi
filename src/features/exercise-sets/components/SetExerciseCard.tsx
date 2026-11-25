@@ -10,12 +10,15 @@
 import { useId } from "react";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ListStates";
+import { ContentLoader } from "@/components/layout/ContentLoader";
 import { cn } from "@/lib/utils";
+import { useExerciseMeta } from "@/features/exercise-database/hook";
 import type { Exercise } from "@/features/exercise-database/types";
 import {
-  getDifficultyLabel,
   getDifficultyStyle,
   hasExerciseSolution,
+  metaLabel,
 } from "@/features/exercise-database/utils";
 import {
   ExerciseTypeBadge,
@@ -46,7 +49,11 @@ export function SetExerciseCard({
   onOpen,
 }: SetExerciseCardProps) {
   const titleId = useId();
+  const { meta, error, retry } = useExerciseMeta();
   const hasSolution = hasExerciseSolution(exercise);
+
+  if (error) return <ErrorState message={error} onRetry={retry} />;
+  if (!meta) return <ContentLoader minHeight="h-12" />;
 
   return (
     <article
@@ -87,7 +94,7 @@ export function SetExerciseCard({
               {/* * Pasek koloru nie niesie tekstu, więc trudność czytają czytniki ekranu */}
               {exercise.difficulty && (
                 <span className="sr-only">
-                  Trudność: {getDifficultyLabel(exercise.difficulty)}
+                  Trudność: {metaLabel(meta.difficulties, exercise.difficulty)}
                 </span>
               )}
               {exercise.mathLevel && <LevelBadge level={exercise.mathLevel} />}

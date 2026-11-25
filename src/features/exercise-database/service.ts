@@ -11,7 +11,6 @@ import type {
   ApiExercise,
   ApiExerciseBlock,
   ApiExerciseListItem,
-  ApiExercisePage,
   ApiTag,
   Category,
   CategoryNode,
@@ -24,7 +23,6 @@ import type {
 } from "./types";
 
 const BASE_PATH = "/api/v1/exercises";
-const PAGE_SIZE = 100;
 
 function numericId(id: string): number {
   const parsed = Number(id);
@@ -39,7 +37,10 @@ function mapTag(tag: ApiTag): Tag {
 }
 
 function mapCategory(category: ApiCategoryRef): Category {
-  return { id: String(category.id), name: category.name };
+  if (!Array.isArray(category.path) || category.path.length === 0 || !category.path.every((part) => typeof part === "string")) {
+    throw new Error("Serwer zwrócił nieprawidłową ścieżkę działu.");
+  }
+  return { id: String(category.id), name: category.name, path: category.path };
 }
 
 function mapCategoryNode(node: ApiCategoryNode, parentId: string | null): CategoryNode {
@@ -56,7 +57,7 @@ function mapBlock(block: ApiExerciseBlock, index: number): ExerciseBlock {
   const id = `block-${index}`;
   switch (block.type) {
     case "text":
-      return { id, type: "text", content: block.text, style: block.style ?? "normal" };
+      return { id, type: "text", content: block.text };
     case "image":
       return { id, type: "image", assetId: block.asset_id, caption: block.caption ?? null };
     case "file":
@@ -77,11 +78,9 @@ function mapExercise(api: ApiExercise): Exercise {
     points: api.points,
     content: api.content.map(mapBlock),
     solution: api.solution?.map(mapBlock) ?? null,
-    gradingRulesUrl: api.grading_rules_url,
     tags: api.tags.map(mapTag),
     categories: api.categories.map(mapCategory),
     isOwner: api.is_owner,
-    setCount: api.set_count,
     createdAt: new Date(api.created_at),
     updatedAt: new Date(api.updated_at),
   };
@@ -100,7 +99,6 @@ function mapListItem(api: ApiExerciseListItem): ExerciseListItem {
     categories: api.categories.map(mapCategory),
     hasSolution: api.has_solution,
     isOwner: api.is_owner,
-    setCount: api.set_count,
     updatedAt: new Date(api.updated_at),
   };
 }
@@ -108,7 +106,7 @@ function mapListItem(api: ApiExerciseListItem): ExerciseListItem {
 function mapFormBlock(block: ExerciseFormBlockData): ExerciseBlockPayload {
   switch (block.type) {
     case "text":
-      return { type: "text", text: block.content, style: block.style };
+      return { type: "text", text: block.content };
     case "image":
       return { type: "image", asset_id: block.assetId, caption: block.caption };
     case "file":
@@ -134,11 +132,43 @@ function mapForm(form: ExerciseFormData): ExerciseCreatePayload {
   };
 }
 
+export function mapExerciseToFormData(exercise: Exercise): ExerciseFormData {
+  const mapBlock = (block: ExerciseBlock): ExerciseFormBlockData => {
+    if (block.type === "text") {
+      return { id: block.id, type: "text", content: block.content };
+    }
+    if (block.type === "image") {
+      return { id: block.id, type: "image", assetId: block.assetId, caption: block.caption };
+    }
+    return { id: block.id, type: "file", assetId: block.assetId, name: block.name };
+  };
+
+  return {
+    title: exercise.title,
+    exerciseTypeCode: exercise.exerciseType,
+    mathLevel: exercise.mathLevel,
+    difficulty: exercise.difficulty,
+    points: exercise.points,
+    categoryIds: exercise.categories.map((category) => category.id),
+    tagIds: exercise.tags.map((tag) => tag.id),
+    content: exercise.content.map(mapBlock),
+    solution: exercise.solution?.map(mapBlock) ?? [],
+  };
+}
+
 export const ExerciseService = {
   async uploadAsset(file: File): Promise<{ id: number; mimeType: string; originalName: string | null }> {
     const body = new FormData();
     body.append("file", file);
-    const result = await apiClient.post<{ id: number; mime_type: string; original_name: string | null }>("/api/v1/assets", { body });
+    let result: { id: number; mime_type: string; original_name: string | null };
+    try {
+      result = await apiClient.post("/api/v1/assets", { body });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 429) {
+        throw new ApiError("Przekroczono limit przesyłania plików (60 na minutę). Spróbuj ponownie za minutę.", 429, error.details);
+      }
+      throw error;
+    }
     if (!Number.isSafeInteger(result.id) || result.id <= 0 ||
         !["image/png", "image/jpeg", "image/webp", "application/pdf"].includes(result.mime_type) ||
         (result.original_name !== null && typeof result.original_name !== "string")) {
@@ -168,29 +198,11 @@ export const ExerciseService = {
       .map((node) => mapCategoryNode(node, null));
   },
 
-  // * GET /api/v1/exercises — wszystkie strony lekkiej listy.
+  // * GET /api/v1/exercises — lekka lista widocznych zadań.
   async getExercisesList(): Promise<ExerciseListItem[]> {
-    const items: ExerciseListItem[] = [];
-    const seen = new Set<number>();
-    let offset = 0;
-    for (;;) {
-      const page = await apiClient.get<ApiExercisePage>(`${BASE_PATH}?limit=${PAGE_SIZE}&offset=${offset}`);
-      if (!Number.isSafeInteger(page.total) || page.total < 0 || !Array.isArray(page.items)) {
-        throw new Error("Nieprawidłowa odpowiedź listy zadań.");
-      }
-      for (const item of page.items) {
-        if (seen.has(item.id)) {
-          throw new Error("Lista zadań zmieniła się podczas pobierania. Spróbuj ponownie.");
-        }
-        seen.add(item.id);
-        items.push(mapListItem(item));
-      }
-      offset += page.items.length;
-      if (offset >= page.total) return items;
-      if (page.items.length === 0) {
-        throw new Error("Niekompletna odpowiedź listy zadań.");
-      }
-    }
+    const items = await apiClient.get<ApiExerciseListItem[]>(BASE_PATH);
+    if (!Array.isArray(items)) throw new Error("Nieprawidłowa odpowiedź listy zadań.");
+    return items.map(mapListItem);
   },
 
   // * GET /api/v1/exercises/{id} — szczegóły albo brak zasobu.
