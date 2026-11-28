@@ -9,7 +9,7 @@
 
 import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
-import { Copy, MoreVertical, Pencil, Send, Trash2 } from "lucide-react";
+import { Archive, Copy, MoreVertical, Pencil, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,7 @@ interface ExerciseSetCardProps {
   readonly onEdit: (id: string) => void;
   readonly onDuplicate: (id: string) => void;
   readonly onDelete: (id: string) => void;
+  readonly onArchive: (id: string) => void;
   readonly onAssign: (id: string) => void;
 }
 
@@ -40,6 +41,7 @@ export function ExerciseSetCard({
   onEdit,
   onDuplicate,
   onDelete,
+  onArchive,
   onAssign,
 }: ExerciseSetCardProps) {
   const router = useRouter();
@@ -99,7 +101,8 @@ export function ExerciseSetCard({
       tabIndex={0}
       aria-label={`Zestaw ${set.name}, ${formatExerciseCount(set.exerciseCount)}`}
       className={cn(
-        "group relative flex min-h-60 cursor-pointer flex-col justify-between overflow-hidden rounded-2xl border-2 border-transparent bg-card p-6 shadow-sm outline-none transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary set-card-border",
+        "group relative flex min-h-60 cursor-pointer flex-col justify-between overflow-hidden rounded-2xl border border-border/40 border-t-4 bg-card p-6 shadow-sm outline-none transition-all hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary set-card-border",
+        visuals.hoverBorder,
       )}
       style={{ "--set-accent": visuals.accentHex } as CSSProperties}
     >
@@ -187,12 +190,15 @@ export function ExerciseSetCard({
             <DropdownMenuItem onClick={() => onDuplicate(set.id)}>
               <Copy className="mr-2 h-4 w-4" aria-hidden="true" /> Duplikuj
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onDelete(set.id)}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> Usuń
-            </DropdownMenuItem>
+            {set.assignmentCount > 0 ? (
+              <DropdownMenuItem onClick={() => onArchive(set.id)}>
+                <Archive className="mr-2 h-4 w-4" aria-hidden="true" /> Archiwizuj
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={() => onDelete(set.id)} className="text-destructive focus:text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> Usuń
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

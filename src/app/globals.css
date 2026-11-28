@@ -96,17 +96,9 @@
   display: none;
 }
 
-/* Klasa do animacji obramowania karty zestawu ćwiczeń przy najechaniu kursorem */
+/* Kolor górnej krawędzi karty zestawu */
 .set-card-border {
-  border-color: color-mix(in srgb, var(--set-accent) 45%, transparent);
-  transition:
-    border-color 200ms ease,
-    box-shadow 200ms ease;
-}
-
-.set-card-border:hover {
-  border-color: color-mix(in srgb, var(--set-accent) 75%, transparent);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--set-accent) 18%, transparent);
+  border-top-color: var(--set-accent);
 }
 
 /* Klasy do podglądu przeciąganego zestawu w widoku listy zestawów ćwiczeń */

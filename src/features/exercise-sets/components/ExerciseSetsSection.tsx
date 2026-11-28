@@ -8,7 +8,7 @@
 
 import { useMemo, useState } from "react";
 import type { DragEvent } from "react";
-import { ArrowUpDown, Check, ChevronRight, Folder, MoreVertical, Pencil, Search, Trash2 } from "lucide-react";
+import { ArrowUpDown, Check, ChevronRight, Folder, FolderOpen, MoreVertical, Pencil, Plus, Search, SearchX, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TreeSelect } from "@/components/ui/tree-select";
@@ -25,14 +25,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useExerciseSetFolders } from "../hook";
+import { ExerciseSetService } from "../service";
 import { useTags } from "@/features/exercise-database/hook";
-import type { ExerciseSetListItem } from "../types";
+import type { ExerciseSetListItem, FolderDeletionPreview } from "../types";
+import { toast } from "sonner";
 import {
   compareByUpdatedAtDesc,
   smartSearch,
 } from "@/features/exercise-database/utils";
 import { getLabelEntries, getSetVisuals, isLabelKey } from "../utils";
-import { EmptyState, ErrorState } from "@/components/ListStates";
+import { ErrorState } from "@/components/ListStates";
 import { ContentLoader } from "@/components/layout/ContentLoader";
 import { ExerciseSetCard } from "./ExerciseSetCard";
 import {
@@ -97,9 +99,12 @@ interface ExerciseSetsSectionProps {
   readonly error: string | null;
   readonly onRetry: () => void;
   readonly searchQuery: string;
+  readonly onClearSearch: () => void;
+  readonly onCreate: () => void;
   readonly onEdit: (id: string) => void;
   readonly onDuplicate: (id: string) => void;
   readonly onDelete: (id: string) => void;
+  readonly onArchive: (id: string) => void;
   readonly onAssign: (id: string) => void;
   readonly onSetsChanged: () => void;
   readonly onMoveSet: (id: string, folderId: string | null) => Promise<boolean>;
@@ -111,15 +116,18 @@ export function ExerciseSetsSection({
   error,
   onRetry,
   searchQuery,
+  onClearSearch,
+  onCreate,
   onEdit,
   onDuplicate,
   onDelete,
+  onArchive,
   onAssign,
   onSetsChanged,
   onMoveSet,
 }: ExerciseSetsSectionProps) {
   const { tags } = useTags();
-  const { folders, renameFolder, deleteFolder } = useExerciseSetFolders();
+  const { folders, renameFolder, deleteFolder, isLoading: foldersLoading, error: foldersError, refetch: refetchFolders } = useExerciseSetFolders();
 
   const [sort, setSort] = useState<SetsSort>(DEFAULT_SETS_SORT);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
@@ -128,7 +136,6 @@ export function ExerciseSetsSection({
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
 
   // * Filtrowanie (smartSearch: odporny na polskie znaki i końcówki) + sortowanie
-  // ? Filtr tagu działa na previewTags (max 3 tagi zestawu) — pełne tagi wymagają zmiany DTO.
   const filteredSets = useMemo(
     () =>
       sets
@@ -137,7 +144,7 @@ export function ExerciseSetsSection({
             smartSearch(searchQuery, [set.name, set.description]) &&
             (tagFilter.length === 0 ||
               tagFilter.every((tagId) =>
-                set.previewTags.some((tag) => tag.id === tagId),
+                set.tags.some((tag) => tag.id === tagId),
               ))
         )
         .sort(SET_SORT_COMPARATORS[sort]),
@@ -145,6 +152,8 @@ export function ExerciseSetsSection({
   );
 
   const [folderToDelete, setFolderToDelete] = useState<string | null>(null);
+  const [deletionPreview, setDeletionPreview] = useState<FolderDeletionPreview | null>(null);
+  const [confirmProtected, setConfirmProtected] = useState(false);
   const [folderToRename, setFolderToRename] = useState<{ id: string; name: string } | null>(null);
   const [folderName, setFolderName] = useState("");
 
@@ -155,6 +164,9 @@ export function ExerciseSetsSection({
   const visibleSets = filteredSets.filter(
     (set) => set.folderId === currentFolderId,
   );
+  const hasFilters = searchQuery.trim().length > 0 || tagFilter.length > 0;
+  const hasSetsInFolder = sets.some((set) => set.folderId === currentFolderId);
+  const showNoResults = hasFilters && hasSetsInFolder && visibleSets.length === 0;
   const breadcrumbs = currentFolder
     ? (() => {
         const path = [];
@@ -175,6 +187,7 @@ export function ExerciseSetsSection({
           onEdit={onEdit}
           onDuplicate={onDuplicate}
           onDelete={onDelete}
+          onArchive={onArchive}
           onAssign={onAssign}
         />
       ))}
@@ -189,6 +202,17 @@ export function ExerciseSetsSection({
   const openRenameFolder = (id: string, name: string) => {
     setFolderToRename({ id, name });
     setFolderName(name);
+  };
+  const openDeleteFolder = async (id: string) => {
+    try {
+      const preview = await ExerciseSetService.previewFolderDeletion(id);
+      setDeletionPreview(preview);
+      setConfirmProtected(false);
+      setFolderToDelete(id);
+    } catch (error) {
+      console.error("Folder deletion preview error:", error);
+      toast.error(error instanceof Error ? error.message : "Nie udało się sprawdzić zawartości folderu.");
+    }
   };
 
   return (
@@ -271,8 +295,10 @@ export function ExerciseSetsSection({
       {/* ========================================== */}
       {/* LISTA KART (błąd / pusto / siatka)         */}
       {/* ========================================== */}
-      {isLoading && sets.length === 0 ? (
+      {(isLoading && sets.length === 0) || foldersLoading ? (
         <ContentLoader minHeight="h-100" />
+      ) : foldersError ? (
+        <ErrorState message={foldersError} onRetry={refetchFolders} />
       ) : error ? (
         <ErrorState message={error} onRetry={onRetry} />
       ) : (
@@ -308,16 +334,7 @@ export function ExerciseSetsSection({
             ))}
           </nav>
 
-          {childFolders.length === 0 && visibleSets.length === 0 ? (
-            <EmptyState
-              message={
-                sets.length === 0
-                  ? "Brak zestawów"
-                  : "Brak zestawów spełniających kryteria"
-              }
-            />
-          ) : (
-            <>
+          {childFolders.length > 0 && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {childFolders.map((folder) => (
               <button
@@ -348,7 +365,7 @@ export function ExerciseSetsSection({
                       <DropdownMenuItem onClick={() => openRenameFolder(folder.id, folder.name)}>
                         <Pencil className="mr-2 h-4 w-4" aria-hidden="true" /> Zmień nazwę
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setFolderToDelete(folder.id)}>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => void openDeleteFolder(folder.id)}>
                         <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> Usuń folder
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -357,26 +374,72 @@ export function ExerciseSetsSection({
               </button>
             ))}
           </div>
-
-          {visibleSets.length > 0 && renderSets(visibleSets)}
-            </>
           )}
+          {visibleSets.length > 0 && renderSets(visibleSets)}
+          {showNoResults ? (
+            <div className="flex flex-col items-center rounded-2xl border border-dashed border-border/60 bg-card px-6 py-16 text-center">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
+                <SearchX className="h-7 w-7" aria-hidden="true" />
+              </div>
+              <h2 className="text-lg font-semibold text-foreground">Brak zestawów spełniających kryteria</h2>
+              <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                Spróbuj zmienić wyszukiwanie lub wybrane tagi, aby znaleźć zestaw.
+              </p>
+              <Button type="button" variant="outline" className="mt-6 h-11 rounded-xl" onClick={() => {
+                onClearSearch();
+                setTagFilter([]);
+              }}>
+                Wyczyść filtry
+              </Button>
+            </div>
+          ) : childFolders.length === 0 && visibleSets.length === 0 ? (
+            <div className="flex flex-col items-center rounded-2xl border border-dashed border-border/60 bg-card px-6 py-16 text-center">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <FolderOpen className="h-7 w-7" aria-hidden="true" />
+              </div>
+              <h2 className="text-lg font-semibold text-foreground">
+                {currentFolderId ? "Ten folder jest pusty" : "Stwórz swój pierwszy zestaw"}
+              </h2>
+              <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                Zbierz zadania w zestaw, uporządkuj je i miej materiały zawsze pod ręką.
+              </p>
+              <Button type="button" className="mt-6 h-11 rounded-xl font-semibold" onClick={onCreate}>
+                <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                Utwórz zestaw
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
       <DeleteConfirmModal
         open={folderToDelete !== null}
-        title="Usuń folder"
-        description="Folder, wszystkie podfoldery i znajdujące się w nich zestawy zostaną usunięte."
+        title={confirmProtected ? "Zestawy przypisane do prac domowych" : "Usuń folder"}
+        description={confirmProtected ? (
+          <>Foldery i pozostałe zestawy zostaną usunięte. Przypisane zestawy zostaną przeniesione poziom wyżej:
+            {deletionPreview?.protectedSets.map((set) => <span className="block" key={set.id}>{set.folderPath.join(" › ")}: {set.name}</span>)}
+          </>
+        ) : (
+          <>Folder i wszystkie podfoldery zostaną usunięte. Usunięte zestawy:
+            {deletionPreview?.deletedSets.length ? deletionPreview.deletedSets.map((set) => <span className="block" key={set.id}>{set.folderPath.join(" › ")}: {set.name}</span>) : " brak."}
+          </>
+        )}
         isDeleting={isDeletingFolder}
-        onClose={() => setFolderToDelete(null)}
+        onClose={() => { setFolderToDelete(null); setDeletionPreview(null); }}
         onConfirm={() => {
-          if (!folderToDelete) return;
+          if (!folderToDelete || !deletionPreview) return;
+          if (deletionPreview.protectedSets.length && !confirmProtected) {
+            setConfirmProtected(true);
+            return;
+          }
           setIsDeletingFolder(true);
-          void deleteFolder(folderToDelete).then((deleted) => {
+          void deleteFolder(folderToDelete, deletionPreview.fingerprint).then((deleted) => {
             if (deleted) {
               setFolderToDelete(null);
               setCurrentFolderId(null);
               onSetsChanged();
+            } else {
+              setFolderToDelete(null);
+              setDeletionPreview(null);
             }
             setIsDeletingFolder(false);
           });

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  Archive,
   Award,
   BookOpen,
   Clock,
@@ -21,6 +22,7 @@ import {
   FileDown,
   ListChecks,
   Loader2,
+  RotateCcw,
   Send,
   Trash2,
   type LucideIcon,
@@ -89,7 +91,7 @@ export function ExerciseSetDetailView({ setId }: { readonly setId: string }) {
   );
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isDuplicating, setIsDuplicating] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   // ----- Wartości pochodne (useMemo, nie efekty) -----
   const exercises = detail?.exercises ?? EMPTY_EXERCISES;
@@ -142,17 +144,22 @@ export function ExerciseSetDetailView({ setId }: { readonly setId: string }) {
   };
 
   // * Duplikacja: po utworzeniu kopii przechodzimy od razu na jej stronę
-  const handleDuplicate = async () => {
-    setIsDuplicating(true);
+  const handleArchive = async () => {
+    setIsArchiving(true);
     try {
-      const copy = await ExerciseSetService.duplicate(setId);
-      toast.success("Utworzono kopię zestawu");
-      router.push(`/exercise-sets/${copy.id}`);
+      if (detail?.archivedAt) {
+        await ExerciseSetService.restore(setId);
+        toast.success("Zestaw został przywrócony");
+      } else {
+        await ExerciseSetService.archive(setId);
+        toast.success("Zestaw został zarchiwizowany");
+      }
+      router.push("/exercise-sets");
     } catch (err) {
-      console.error("Duplicate exercise set error:", err);
-      toast.error("Błąd duplikowania zestawu");
+      console.error("Archive exercise set error:", err);
+      toast.error(err instanceof Error ? err.message : "Nie udało się zmienić stanu zestawu");
     } finally {
-      setIsDuplicating(false);
+      setIsArchiving(false);
     }
   };
 
@@ -165,7 +172,7 @@ export function ExerciseSetDetailView({ setId }: { readonly setId: string }) {
       router.push("/exercise-sets");
     } catch (err) {
       console.error("Delete exercise set error:", err);
-      toast.error("Nie udało się usunąć zestawu");
+      toast.error(err instanceof Error ? err.message : "Nie udało się usunąć zestawu");
       setIsDeleting(false);
     }
   };
@@ -211,10 +218,15 @@ export function ExerciseSetDetailView({ setId }: { readonly setId: string }) {
           className="-ml-3 h-11 self-start rounded-xl text-muted-foreground hover:text-foreground lg:ml-0"
         >
           <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-          Wróć do bazy
+          Wróć do zestawów
         </Button>
 
         <div className="flex flex-wrap items-center gap-2">
+          {detail.archivedAt ? (
+            <Button type="button" onClick={() => void handleArchive()} disabled={isArchiving}>
+              <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" /> Przywróć
+            </Button>
+          ) : (<>
           <Button
             type="button"
             variant="secondary"
@@ -248,21 +260,19 @@ export function ExerciseSetDetailView({ setId }: { readonly setId: string }) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => void handleDuplicate()}
-            disabled={isDuplicating}
+            onClick={() => toast.info("Wkrótce dostępne")}
             className="h-11 rounded-xl bg-card shadow-sm"
           >
-            {isDuplicating ? (
-              <Loader2
-                className="mr-2 h-4 w-4 animate-spin"
-                aria-hidden="true"
-              />
-            ) : (
-              <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
-            )}
+            <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
             Duplikuj
           </Button>
 
+          {detail.assignmentCount > 0 ? (
+            <Button type="button" variant="outline" onClick={() => void handleArchive()} disabled={isArchiving}>
+              {isArchiving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Archive className="mr-2 h-4 w-4" />}
+              Archiwizuj
+            </Button>
+          ) : (
           <Button
             type="button"
             variant="destructive"
@@ -272,6 +282,8 @@ export function ExerciseSetDetailView({ setId }: { readonly setId: string }) {
             <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
             Usuń
           </Button>
+          )}
+          </>)}
         </div>
       </div>
 
@@ -367,14 +379,14 @@ export function ExerciseSetDetailView({ setId }: { readonly setId: string }) {
             <p className="mt-1 text-sm text-muted-foreground">
               Dodaj zadania w kreatorze, aby zbudować arkusz.
             </p>
-            <Button
+            {!detail.archivedAt && <Button
               type="button"
               onClick={goToBuilder}
               className="mt-6 h-11 rounded-xl font-semibold shadow-sm"
             >
               <Edit2 className="mr-2 h-4 w-4" aria-hidden="true" />
               Edytuj zestaw
-            </Button>
+            </Button>}
           </div>
         ) : (
           <ol className="space-y-6">
@@ -385,7 +397,7 @@ export function ExerciseSetDetailView({ setId }: { readonly setId: string }) {
                   number={index + 1}
                   isSolutionVisible={expandedIds.has(exercise.id)}
                   onToggleSolution={() => toggleSolution(exercise.id)}
-                  onOpen={() => router.push(`/exercise-sets/${exercise.id}`)}
+                  onOpen={() => router.push(`/exercise-database/${exercise.id}`)}
                 />
               </li>
             ))}

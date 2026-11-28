@@ -23,7 +23,8 @@ export const exerciseSetFormSchema = z.object({
         position: z.number().int().min(0),
       }),
     )
-    .min(1, "Zestaw musi zawierać co najmniej jedno zadanie"),
+    .min(1, "Zestaw musi zawierać co najmniej jedno zadanie")
+    .max(100, "Zestaw może zawierać maksymalnie 100 zadań"),
 });
 
 export type ExerciseSetFormData = z.infer<typeof exerciseSetFormSchema>;

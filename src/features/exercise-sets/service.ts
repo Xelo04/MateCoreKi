@@ -1,324 +1,189 @@
-// ==========================================
-// SERWIS: Zestawy zadań
-// ==========================================
-// * Feature zestawów posiada własne odczyty, mutacje i mapowanie DTO.
-// * Pojedyncze zadania są odczytywane przez publiczny serwis exercise-database.
-
-import { ExerciseService } from "@/features/exercise-database/service";
-import type {
-  ApiExerciseSet,
-  ExerciseSet,
-  ExerciseSetDetail,
-  ExerciseSetFolder,
-  ExerciseSetListItem,
-} from "./types";
+import { apiClient } from "@/lib/api/api-client";
+import { ApiError } from "@/lib/api/api-errors";
+import type { ApiExercise, ApiExerciseBlock, ApiTag, Exercise, ExerciseBlock, Tag } from "@/features/exercise-database/types";
 import type { ExerciseSetFormData } from "./schema";
+import type { ExerciseSet, ExerciseSetDetail, ExerciseSetFolder, ExerciseSetListItem, FolderDeletionPreview } from "./types";
 
-export type ExerciseSetServiceErrorCode = "NOT_FOUND" | "VALIDATION";
+const SETS = "/api/v1/exercise-sets";
+const FOLDERS = "/api/v1/set-folders";
 
-export class ExerciseSetServiceError extends Error {
-  readonly code: ExerciseSetServiceErrorCode;
+interface ApiSetList {
+  id: number;
+  name: string;
+  description: string | null;
+  folder_id: number | null;
+  exercise_count: number;
+  preview_tags: ApiTag[];
+  tags: ApiTag[];
+  assignment_count: number;
+  archived_at: string | null;
+  updated_at: string;
+}
 
-  constructor(code: ExerciseSetServiceErrorCode, message: string) {
-    super(message);
-    this.name = "ExerciseSetServiceError";
-    this.code = code;
+interface ApiSetDetail extends Omit<ApiSetList, "exercise_count" | "preview_tags" | "tags"> {
+  exercise_ids: number[];
+  exercises: ApiExercise[];
+  created_at: string;
+}
+
+interface ApiFolder {
+  id: number;
+  name: string;
+  parent_id: number | null;
+}
+
+interface ApiFolderNode extends ApiFolder {
+  children: ApiFolderNode[];
+}
+
+interface ApiDeletionPreview {
+  fingerprint: string;
+  folder_names: string[][];
+  deleted_sets: { id: number; name: string; folder_path: string[] }[];
+  protected_sets: { id: number; name: string; folder_path: string[] }[];
+}
+
+function numericId(id: string): number {
+  const parsed = Number(id);
+  if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(parsed)) {
+    throw new Error("Nieprawidłowy identyfikator zasobu.");
+  }
+  return parsed;
+}
+
+const mapTag = (tag: ApiTag): Tag => ({
+  id: String(tag.id), name: tag.name, isGlobal: tag.is_system,
+});
+
+function mapBlock(block: ApiExerciseBlock, index: number): ExerciseBlock {
+  const id = `block-${index}`;
+  switch (block.type) {
+    case "text": return { id, type: "text", content: block.text };
+    case "image": return { id, type: "image", assetId: block.asset_id, caption: block.caption ?? null };
+    case "file": return { id, type: "file", assetId: block.asset_id, name: block.name ?? null };
+    default: throw new Error("Serwer zwrócił nieobsługiwany typ bloku zadania.");
   }
 }
 
-const MOCK_LATENCY_MS = {
-  short: 300,
-  medium: 400,
-  write: 500,
-} as const;
+function mapExercise(api: ApiExercise): Exercise {
+  return {
+    id: String(api.id), title: api.title, sourceType: api.source_type,
+    exerciseType: api.exercise_type, mathLevel: api.math_level,
+    difficulty: api.difficulty, points: api.points, content: api.content.map(mapBlock),
+    solution: api.solution?.map(mapBlock) ?? null, tags: api.tags.map(mapTag),
+    categories: api.categories.map((category) => {
+      if (!Array.isArray(category.path) || !category.path.length || !category.path.every((part) => typeof part === "string")) {
+        throw new Error("Serwer zwrócił nieprawidłową ścieżkę działu.");
+      }
+      return { id: String(category.id), name: category.name, path: category.path };
+    }),
+    isOwner: api.is_owner, createdAt: new Date(api.created_at), updatedAt: new Date(api.updated_at),
+  };
+}
 
-const delay = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
-let mockIdSequence = 0;
-const createMockId = (prefix: string): string =>
-  `${prefix}-${Date.now()}-${++mockIdSequence}`;
-
-const mockFolders: ExerciseSetFolder[] = [
-  { id: "folder-school", name: "Szkoła", parentId: null },
-  {
-    id: "folder-school-primary",
-    name: "Szkoła podstawowa",
-    parentId: "folder-school",
-  },
-  { id: "folder-school-high", name: "Liceum", parentId: "folder-school" },
-];
-
-let mockSets: ApiExerciseSet[] = [
-  {
-    id: "set-1",
-    name: "Sprawdzian - równania i nierówności",
-    description: "Sprawdzian dla klasy 2 LO",
-    folder_id: "folder-school-high",
-    exercise_items: [
-      { exercise_id: "ex-1", position: 0 },
-      { exercise_id: "ex-2", position: 1 },
-    ],
-    created_at: "2025-06-10T12:00:00Z",
-    updated_at: "2025-06-10T12:00:00Z",
-  },
-  {
-    id: "set-2",
-    name: "Równania liniowe - ćwiczenia",
-    description: "Powtórka przed sprawdzianem dla klasy 1 LO",
-    folder_id: "folder-school-high",
-    exercise_items: [
-      { exercise_id: "ex-1", position: 0 },
-      { exercise_id: "ex-3", position: 1 },
-    ],
-    created_at: "2025-06-12T10:00:00Z",
-    updated_at: "2025-06-12T10:00:00Z",
-  },
-  {
-    id: "set-3",
-    name: "Potęgi i pierwiastki",
-    description: "Zestaw utrwalający podstawowe rachunki",
-    folder_id: "folder-school-primary",
-    exercise_items: [{ exercise_id: "ex-2", position: 0 }],
-    created_at: "2025-06-08T09:00:00Z",
-    updated_at: "2025-06-08T09:00:00Z",
-  },
-  {
-    id: "set-4",
-    name: "Geometria - pola figur",
-    description: "Materiały do pracy z klasą 7",
-    folder_id: "folder-school-primary",
-    exercise_items: [
-      { exercise_id: "ex-2", position: 0 },
-      { exercise_id: "ex-3", position: 1 },
-    ],
-    created_at: "2025-06-07T08:00:00Z",
-    updated_at: "2025-06-07T08:00:00Z",
-  },
-  {
-    id: "set-5",
-    name: "Kartkówka na start",
-    description: "Krótka diagnoza poziomu grupy",
-    folder_id: null,
-    exercise_items: [{ exercise_id: "ex-1", position: 0 }],
-    created_at: "2025-06-05T07:00:00Z",
-    updated_at: "2025-06-05T07:00:00Z",
-  },
-  {
-    id: "set-6",
-    name: "Zadania domowe - tydzień 1",
-    description: "Zestaw do samodzielnej pracy ucznia",
-    folder_id: null,
-    exercise_items: [
-      { exercise_id: "ex-1", position: 0 },
-      { exercise_id: "ex-2", position: 1 },
-    ],
-    created_at: "2025-06-04T07:00:00Z",
-    updated_at: "2025-06-04T07:00:00Z",
-  },
-];
-
-const sortItems = (items: ApiExerciseSet["exercise_items"]) =>
-  [...items].sort((a, b) => a.position - b.position);
-
-const findSetOrThrow = (id: string): ApiExerciseSet => {
-  const set = mockSets.find((candidate) => candidate.id === id);
-  if (!set) {
-    throw new ExerciseSetServiceError("NOT_FOUND", `Zestaw ${id} nie istnieje`);
+function mapDetail(api: ApiSetDetail): ExerciseSetDetail {
+  if (!Array.isArray(api.exercise_ids) || !Array.isArray(api.exercises) ||
+      api.exercise_ids.length !== api.exercises.length ||
+      api.exercise_ids.some((id, index) => id !== api.exercises[index].id)) {
+    throw new Error("Serwer zwrócił niespójne zadania zestawu.");
   }
-  return set;
-};
+  return {
+    id: String(api.id), name: api.name, description: api.description,
+    folderId: api.folder_id === null ? null : String(api.folder_id),
+    exerciseIds: api.exercise_ids.map(String), exercises: api.exercises.map(mapExercise),
+    assignmentCount: api.assignment_count, archivedAt: api.archived_at ? new Date(api.archived_at) : null,
+    createdAt: new Date(api.created_at), updatedAt: new Date(api.updated_at),
+  };
+}
 
-const mapSet = (api: ApiExerciseSet): ExerciseSet => ({
-  id: api.id,
-  name: api.name,
-  description: api.description,
-  folderId: api.folder_id,
-  exerciseIds: sortItems(api.exercise_items).map((item) => item.exercise_id),
-  createdAt: new Date(api.created_at),
-  updatedAt: new Date(api.updated_at),
-});
+function mapFolder(folder: ApiFolder): ExerciseSetFolder {
+  return { id: String(folder.id), name: folder.name, parentId: folder.parent_id === null ? null : String(folder.parent_id) };
+}
 
-const mapItems = async (
-  items: ExerciseSetFormData["items"],
-): Promise<ApiExerciseSet["exercise_items"]> => {
-  const mapped = [];
-  for (const [position, item] of items.entries()) {
-    const exercise = await ExerciseService.getExercise(item.exercise_id);
-    if (!exercise) {
-      throw new ExerciseSetServiceError(
-        "NOT_FOUND",
-        `Zadanie ${item.exercise_id} nie istnieje`,
-      );
-    }
-    mapped.push({ exercise_id: item.exercise_id, position });
-  }
-  return mapped;
-};
-
-const mapListItem = (api: ApiExerciseSet): ExerciseSetListItem => ({
-  id: api.id,
-  name: api.name,
-  description: api.description,
-  folderId: api.folder_id,
-  exerciseCount: api.exercise_items.length,
-  previewTags: [],
-  updatedAt: new Date(api.updated_at),
-});
+function formBody(form: ExerciseSetFormData) {
+  return {
+    name: form.name, description: form.description || null,
+    folder_id: form.folderId === null ? null : numericId(form.folderId),
+    exercise_ids: form.items.map((item) => numericId(item.exercise_id)),
+  };
+}
 
 export const ExerciseSetService = {
-  // * Pobiera listę zestawów z liczbą zadań i tagami podglądowymi.
-  // TODO: [BACKEND] GET /api/v1/exercises/sets
-  async getList(): Promise<ExerciseSetListItem[]> {
-    await delay(MOCK_LATENCY_MS.medium);
-    const items = mockSets.map(mapListItem);
-    return items.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  async getList(archived = false): Promise<ExerciseSetListItem[]> {
+    const items = await apiClient.get<ApiSetList[]>(`${SETS}?archived=${archived}`);
+    return items.map((item) => ({
+      id: String(item.id), name: item.name, description: item.description,
+      folderId: item.folder_id === null ? null : String(item.folder_id),
+      exerciseCount: item.exercise_count, previewTags: item.preview_tags.map(mapTag),
+      tags: item.tags.map(mapTag), assignmentCount: item.assignment_count,
+      archivedAt: item.archived_at ? new Date(item.archived_at) : null,
+      updatedAt: new Date(item.updated_at),
+    }));
   },
 
-  // * Pobiera szczegóły zestawu i zadania w zapisanej kolejności.
-  // TODO: [BACKEND] GET /api/v1/exercises/sets/:id
   async getDetail(id: string): Promise<ExerciseSetDetail | null> {
-    await delay(MOCK_LATENCY_MS.medium);
-    const set = mockSets.find((candidate) => candidate.id === id);
-    if (!set) return null;
-    const exercises = await Promise.all(
-      sortItems(set.exercise_items).map((item) =>
-        ExerciseService.getExercise(item.exercise_id),
-      ),
-    );
-    return { ...mapSet(set), exercises: exercises.filter((exercise) => exercise !== null) };
+    try {
+      return mapDetail(await apiClient.get<ApiSetDetail>(`${SETS}/${numericId(id)}`));
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) return null;
+      throw error;
+    }
   },
 
-  // * Pobiera foldery i podfoldery zestawów.
-  // TODO: [BACKEND] GET /api/v1/exercises/set-folders
   async getFolders(): Promise<ExerciseSetFolder[]> {
-    await delay(MOCK_LATENCY_MS.short);
-    return mockFolders.map((folder) => ({ ...folder }));
+    const tree = await apiClient.get<ApiFolderNode[]>(FOLDERS);
+    const flatten = (nodes: ApiFolderNode[]): ExerciseSetFolder[] =>
+      nodes.flatMap((node) => [mapFolder(node), ...flatten(node.children)]);
+    return flatten(tree);
   },
 
-  // * Tworzy folder główny albo podfolder.
-  // TODO: [BACKEND] POST /api/v1/exercises/set-folders
-  async createFolder(
-    name: string,
-    parentId: string | null,
-  ): Promise<ExerciseSetFolder> {
-    await delay(MOCK_LATENCY_MS.short);
-    const trimmed = name.trim();
-    if (!trimmed) {
-      throw new ExerciseSetServiceError("VALIDATION", "Nazwa folderu nie może być pusta");
-    }
-    if (parentId && !mockFolders.some((folder) => folder.id === parentId)) {
-      throw new ExerciseSetServiceError("NOT_FOUND", "Folder nadrzędny nie istnieje");
-    }
-    const folder = { id: createMockId("folder"), name: trimmed, parentId };
-    mockFolders.push(folder);
-    return { ...folder };
+  async createFolder(name: string, parentId: string | null): Promise<ExerciseSetFolder> {
+    return mapFolder(await apiClient.post<ApiFolder>(FOLDERS, {
+      body: { name, parent_id: parentId === null ? null : numericId(parentId) },
+    }));
   },
 
   async renameFolder(id: string, name: string): Promise<ExerciseSetFolder> {
-    await delay(MOCK_LATENCY_MS.short);
-    const trimmed = name.trim();
-    if (!trimmed) {
-      throw new ExerciseSetServiceError("VALIDATION", "Nazwa folderu nie może być pusta");
-    }
-    const folder = mockFolders.find((candidate) => candidate.id === id);
-    if (!folder) {
-      throw new ExerciseSetServiceError("NOT_FOUND", "Folder nie istnieje");
-    }
-    folder.name = trimmed;
-    return { ...folder };
+    return mapFolder(await apiClient.patch<ApiFolder>(`${FOLDERS}/${numericId(id)}`, { body: { name } }));
   },
 
-  async removeFolder(id: string): Promise<void> {
-    await delay(MOCK_LATENCY_MS.medium);
-    if (!mockFolders.some((folder) => folder.id === id)) {
-      throw new ExerciseSetServiceError("NOT_FOUND", "Folder nie istnieje");
-    }
-    const ids = new Set([id]);
-    let changed = true;
-    while (changed) {
-      changed = false;
-      mockFolders.forEach((folder) => {
-        if (folder.parentId && ids.has(folder.parentId) && !ids.has(folder.id)) {
-          ids.add(folder.id);
-          changed = true;
-        }
-      });
-    }
-    mockFolders.splice(0, mockFolders.length, ...mockFolders.filter((folder) => !ids.has(folder.id)));
-    mockSets = mockSets.filter((set) => !set.folder_id || !ids.has(set.folder_id));
+  async previewFolderDeletion(id: string): Promise<FolderDeletionPreview> {
+    const preview = await apiClient.get<ApiDeletionPreview>(`${FOLDERS}/${numericId(id)}/deletion-preview`);
+    const mapEntry = (entry: ApiDeletionPreview["deleted_sets"][number]) =>
+      ({ id: String(entry.id), name: entry.name, folderPath: entry.folder_path });
+    return {
+      fingerprint: preview.fingerprint, folderNames: preview.folder_names,
+      deletedSets: preview.deleted_sets.map(mapEntry), protectedSets: preview.protected_sets.map(mapEntry),
+    };
   },
 
-  // * Tworzy zestaw z przeliczoną pozycją elementów.
-  // TODO: [BACKEND] POST /api/v1/exercises/sets
+  async removeFolder(id: string, fingerprint: string): Promise<void> {
+    await apiClient.delete<void>(`${FOLDERS}/${numericId(id)}`, { body: { fingerprint } });
+  },
+
   async create(form: ExerciseSetFormData): Promise<ExerciseSet> {
-    await delay(MOCK_LATENCY_MS.write);
-    const now = new Date().toISOString();
-    const created: ApiExerciseSet = {
-      id: createMockId("set"),
-      name: form.name,
-      description: form.description || null,
-      folder_id: form.folderId,
-      exercise_items: await mapItems(form.items),
-      created_at: now,
-      updated_at: now,
-    };
-    mockSets = [...mockSets, created];
-    return mapSet(created);
+    return mapDetail(await apiClient.post<ApiSetDetail>(SETS, { body: formBody(form) }));
   },
 
-  // * Aktualizuje nazwę, opis, folder i kolejność zadań.
-  // TODO: [BACKEND] PUT /api/v1/exercises/sets/:id
   async update(id: string, form: ExerciseSetFormData): Promise<ExerciseSet> {
-    await delay(MOCK_LATENCY_MS.write);
-    const existing = findSetOrThrow(id);
-    const updated = {
-      ...existing,
-      name: form.name,
-      description: form.description || null,
-      folder_id: form.folderId,
-      exercise_items: await mapItems(form.items),
-      updated_at: new Date().toISOString(),
-    };
-    mockSets = mockSets.map((set) => (set.id === id ? updated : set));
-    return mapSet(updated);
-  },
-
-  // * Duplikuje zestaw w tym samym folderze.
-  // TODO: [BACKEND] POST /api/v1/exercises/sets/:id/duplicate
-  async duplicate(id: string): Promise<ExerciseSet> {
-    await delay(MOCK_LATENCY_MS.write);
-    const original = findSetOrThrow(id);
-    const now = new Date().toISOString();
-    const duplicate = {
-      ...original,
-      id: createMockId("set"),
-      name: `${original.name} (Kopia)`,
-      exercise_items: original.exercise_items.map((item) => ({ ...item })),
-      created_at: now,
-      updated_at: now,
-    };
-    mockSets = [...mockSets, duplicate];
-    return mapSet(duplicate);
+    return mapDetail(await apiClient.patch<ApiSetDetail>(`${SETS}/${numericId(id)}`, { body: formBody(form) }));
   },
 
   async move(id: string, folderId: string | null): Promise<ExerciseSet> {
-    await delay(MOCK_LATENCY_MS.short);
-    const existing = findSetOrThrow(id);
-    const updated = {
-      ...existing,
-      folder_id: folderId,
-      updated_at: new Date().toISOString(),
-    };
-    mockSets = mockSets.map((set) => (set.id === id ? updated : set));
-    return mapSet(updated);
+    return mapDetail(await apiClient.patch<ApiSetDetail>(`${SETS}/${numericId(id)}`, {
+      body: { folder_id: folderId === null ? null : numericId(folderId) },
+    }));
   },
 
-  // * Usuwa zestaw bez usuwania pojedynczych zadań.
-  // TODO: [BACKEND] DELETE /api/v1/exercises/sets/:id
+  async archive(id: string): Promise<void> {
+    await apiClient.post(`${SETS}/${numericId(id)}/archive`);
+  },
+
+  async restore(id: string): Promise<void> {
+    await apiClient.post(`${SETS}/${numericId(id)}/restore`);
+  },
+
   async remove(id: string): Promise<void> {
-    await delay(MOCK_LATENCY_MS.medium);
-    findSetOrThrow(id);
-    mockSets = mockSets.filter((set) => set.id !== id);
+    await apiClient.delete(`${SETS}/${numericId(id)}`);
   },
 };

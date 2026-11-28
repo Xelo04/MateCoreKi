@@ -93,6 +93,7 @@ interface ItemActionsProps {
   readonly onMoveUp: () => void;
   readonly onMoveDown: () => void;
   readonly onRemove: () => void;
+  readonly locked: boolean;
 }
 
 function ItemActions({
@@ -102,6 +103,7 @@ function ItemActions({
   onMoveUp,
   onMoveDown,
   onRemove,
+  locked,
 }: ItemActionsProps) {
   const isOverlay = variant === "overlay";
   const sizeClass = isOverlay ? "h-8 w-8" : "h-10 w-10";
@@ -119,7 +121,7 @@ function ItemActions({
         type="button"
         variant={isOverlay ? "ghost" : "outline"}
         size="icon"
-        disabled={isFirst}
+        disabled={locked || isFirst}
         onClick={onMoveUp}
         aria-label="Przesuń wyżej"
         className={cn(sizeClass,         "rounded-xl text-muted-foreground")}
@@ -130,7 +132,7 @@ function ItemActions({
         type="button"
         variant={isOverlay ? "ghost" : "outline"}
         size="icon"
-        disabled={isLast}
+        disabled={locked || isLast}
         onClick={onMoveDown}
         aria-label="Przesuń niżej"
         className={cn(sizeClass,         "rounded-xl text-muted-foreground")}
@@ -146,6 +148,7 @@ function ItemActions({
         variant="ghost"
         size="icon"
         onClick={onRemove}
+        disabled={locked}
         aria-label="Usuń z zestawu"
         className={cn(
           sizeClass,
@@ -207,11 +210,13 @@ function SetPreviewItem({
 interface ExerciseSetBuilderFormProps {
   readonly setId?: string;
   readonly initialValues?: ExerciseSetFormData;
+  readonly isAssigned?: boolean;
 }
 
 function ExerciseSetBuilderForm({
   setId,
   initialValues,
+  isAssigned = false,
 }: ExerciseSetBuilderFormProps) {
   const router = useRouter();
   const isEditMode = setId !== undefined;
@@ -229,7 +234,7 @@ function ExerciseSetBuilderForm({
     error: categoriesError,
     refetch: refetchCategories,
   } = useCategoriesTree();
-  const { folders, createFolder } = useExerciseSetFolders();
+  const { folders, createFolder, isLoading: foldersLoading, error: foldersError, refetch: refetchFolders } = useExerciseSetFolders();
 
   // ----- Stan UI -----
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
@@ -290,6 +295,10 @@ function ExerciseSetBuilderForm({
   // ----- Handlery -----
 
   const handleAddExercise = (exerciseId: string) => {
+    if (fields.length >= 100) {
+      toast.error("Zestaw może zawierać maksymalnie 100 zadań.");
+      return;
+    }
     append({ exercise_id: exerciseId, position: fields.length });
     toast.success("Zadanie dodane do zestawu");
   };
@@ -341,7 +350,7 @@ function ExerciseSetBuilderForm({
             className="-ml-3 h-11 rounded-xl text-muted-foreground hover:text-foreground sm:ml-0"
           >
             <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
-            Wróć do bazy
+            Wróć do zestawów
           </Button>
           <div
             className="hidden h-6 w-px bg-border/60 sm:block"
@@ -355,7 +364,7 @@ function ExerciseSetBuilderForm({
         <Button
           type="button"
           onClick={form.handleSubmit(onSubmit)}
-          disabled={form.formState.isSubmitting}
+          disabled={form.formState.isSubmitting || foldersLoading || Boolean(foldersError)}
           className="h-11 w-full rounded-xl px-8 font-semibold shadow-sm sm:w-auto"
         >
           {form.formState.isSubmitting ? (
@@ -377,6 +386,7 @@ function ExerciseSetBuilderForm({
             Ustawienia zestawu
           </h2>
         </div>
+        {foldersError && <ErrorState message={foldersError} onRetry={refetchFolders} />}
 
         <div className="space-y-5 rounded-2xl border border-border/60 bg-card p-5 shadow-sm sm:p-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -501,6 +511,7 @@ function ExerciseSetBuilderForm({
       {/* ========================================== */}
       {/* SEKCJA 2: BAZA ZADAŃ (wspólny ExerciseBrowser) */}
       {/* ========================================== */}
+      {isAssigned && <p role="status">Ten zestaw jest zadany jako praca domowa. Nie można zmienić jego zadań ani ich kolejności.</p>}
       {exercisesError ? (
         <ErrorState message={exercisesError} onRetry={refetchExercises} />
       ) : categoriesError ? (
@@ -514,7 +525,7 @@ function ExerciseSetBuilderForm({
           excludedExerciseIds={usedExerciseIds}
           listMode="scrollable"
           emptyMessage="Brak dostępnych zadań"
-          onAdd={handleAddExercise}
+          onAdd={isAssigned ? undefined : handleAddExercise}
           onView={setPreviewExerciseId}
           sectionTitle="Zadania do wyboru"
           filterAction={
@@ -604,11 +615,11 @@ function ExerciseSetBuilderForm({
             {fields.map((field, index) => (
               <div
                 key={field.id}
-                draggable
+                draggable={!isAssigned}
                 onDragStart={() => setDraggedIndex(index)}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={() => {
-                  if (draggedIndex !== null && draggedIndex !== index) move(draggedIndex, index);
+                  if (!isAssigned && draggedIndex !== null && draggedIndex !== index) move(draggedIndex, index);
                   setDraggedIndex(null);
                 }}
                 onDragEnd={() => setDraggedIndex(null)}
@@ -631,6 +642,7 @@ function ExerciseSetBuilderForm({
                   onMoveUp={() => move(index, index - 1)}
                   onMoveDown={() => move(index, index + 1)}
                   onRemove={() => remove(index)}
+                  locked={isAssigned}
                 />
               </div>
             ))}
@@ -649,6 +661,7 @@ function ExerciseSetBuilderForm({
                 onMoveUp={() => move(index, index - 1)}
                 onMoveDown={() => move(index, index + 1)}
                 onRemove={() => remove(index)}
+                locked={isAssigned}
               />
             ))}
           </div>
@@ -660,7 +673,7 @@ function ExerciseSetBuilderForm({
         <Button
           type="button"
           onClick={form.handleSubmit(onSubmit)}
-          disabled={form.formState.isSubmitting}
+          disabled={form.formState.isSubmitting || foldersLoading || Boolean(foldersError)}
           className="h-11 rounded-xl px-8 font-semibold shadow-sm"
         >
           <Save className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -728,11 +741,13 @@ function ExerciseSetBuilderEditLoader({ setId }: { readonly setId: string }) {
   // * Błąd ładowania: NIE pokazujemy pustego formularza edycji (zapis nadpisałby zestaw)
   if (error) return <ErrorState message={error} onRetry={refetch} />;
   if (!detail) return null;
+  if (detail.archivedAt) return <ErrorState message="Zarchiwizowany zestaw można edytować po przywróceniu." onRetry={() => router.push(`/exercise-sets/${setId}`)} />;
 
   return (
     <ExerciseSetBuilderForm
       key={setId}
       setId={setId}
+      isAssigned={detail.assignmentCount > 0}
       initialValues={{
         name: detail.name,
         description: detail.description ?? "",

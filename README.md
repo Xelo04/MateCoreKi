@@ -85,8 +85,8 @@ Pośrednik Next.js uwierzytelnia dostęp do plików bez udostępniania tokena pr
 Po zapisaniu zmian backend usuwa odłączony plik, jeśli nie jest już używany
 przez żadne zadanie; współdzielone pliki pozostają dostępne.
 Eksport zadania do PDF pozostaje odłożony do czasu dodania endpointu.
-Atrapy zestawów używają innych identyfikatorów niż API zadań i nie zostały
-jeszcze zintegrowane.
+Zestawy korzystają z API backendu; archiwizacja dotyczy zestawów zadanych,
+a duplikowanie pozostaje zaplanowaną funkcją.
 
 Testy klienta i autoryzacji uruchamia `npm run test:auth`; skrypt najpierw
 wykonuje build, a następnie korzysta z izolowanej atrapy API. Atrapa jest

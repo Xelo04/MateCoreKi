@@ -54,6 +54,12 @@ function useServiceResource<T>(
     error: null,
   });
   const [requestKey, setRequestKey] = useState(0);
+  const [trackedLoad, setTrackedLoad] = useState(() => load);
+
+  if (trackedLoad !== load) {
+    setTrackedLoad(() => load);
+    setState({ data: initialValue, isLoading: true, error: null });
+  }
 
   useEffect(() => {
     let isCancelled = false;
@@ -113,23 +119,11 @@ async function runMutation(
 }
 
 // * Udostępnia listę zestawów i mutacje używane przez zakładkę zestawów.
-export function useExerciseSetsList() {
-  const load = useCallback(() => ExerciseSetService.getList(), []);
+export function useExerciseSetsList(archived = false) {
+  const load = useCallback(() => ExerciseSetService.getList(archived), [archived]);
   const { data, isLoading, error, refetch } = useServiceResource<
     ExerciseSetListItem[]
   >(load, [], SETS_MESSAGES);
-
-  const duplicateExerciseSet = useCallback(
-    (id: string) =>
-      runMutation(
-        () => ExerciseSetService.duplicate(id),
-        "Utworzono kopię zestawu",
-        "Błąd duplikowania zestawu",
-        "Duplicate exercise set error",
-        refetch,
-      ),
-    [refetch],
-  );
 
   const deleteExerciseSet = useCallback(
     (id: string) =>
@@ -155,14 +149,30 @@ export function useExerciseSetsList() {
     [refetch],
   );
 
+  const archiveExerciseSet = useCallback(
+    (id: string) => runMutation(
+      () => ExerciseSetService.archive(id), "Zestaw został zarchiwizowany",
+      "Błąd archiwizacji zestawu", "Archive exercise set error", refetch,
+    ),
+    [refetch],
+  );
+  const restoreExerciseSet = useCallback(
+    (id: string) => runMutation(
+      () => ExerciseSetService.restore(id), "Zestaw został przywrócony",
+      "Błąd przywracania zestawu", "Restore exercise set error", refetch,
+    ),
+    [refetch],
+  );
+
   return {
     items: data,
     isLoading,
     error,
     refetch,
-    duplicateExerciseSet,
     deleteExerciseSet,
     moveExerciseSet,
+    archiveExerciseSet,
+    restoreExerciseSet,
   };
 }
 
@@ -215,24 +225,11 @@ export function useExerciseSetFolders() {
   );
 
   const deleteFolder = useCallback(
-    async (id: string) => {
+    async (id: string, fingerprint: string) => {
       try {
-        await ExerciseSetService.removeFolder(id);
-        setData((previous) => {
-          const removed = new Set([id]);
-          let changed = true;
-          while (changed) {
-            changed = false;
-            previous.forEach((folder) => {
-              if (folder.parentId && removed.has(folder.parentId) && !removed.has(folder.id)) {
-                removed.add(folder.id);
-                changed = true;
-              }
-            });
-          }
-          return previous.filter((folder) => !removed.has(folder.id));
-        });
-        toast.success("Folder i jego zawartość zostały usunięte");
+        await ExerciseSetService.removeFolder(id, fingerprint);
+        refetch();
+        toast.success("Folder i niezadane zestawy zostały usunięte");
         return true;
       } catch (error) {
         console.error("Delete exercise set folder error:", error);
@@ -240,7 +237,7 @@ export function useExerciseSetFolders() {
         return false;
       }
     },
-    [setData],
+    [refetch],
   );
 
   return { folders: data, isLoading, error, refetch, createFolder, renameFolder, deleteFolder };
